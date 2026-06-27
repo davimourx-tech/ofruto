@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Conteúdo · APROVA</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" id="backLink"><span class="dot"></span> <span id="studio">APROVA</span></a>
+    <span class="topnav"><span class="badge" id="who"></span></span>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<!-- Modal solicitar ajustes -->
+<div class="scrim" id="scrim" onclick="closeModals(event)"></div>
+<div class="modal" id="adjModal">
+  <div class="head"><strong>Solicitar ajustes</strong><button class="btn-icon" id="x1" onclick="closeModals()"></button></div>
+  <div class="body">
+    <div class="card pad" style="background:var(--surface-2);margin-bottom:16px">
+      <div class="meta-sm" id="adjGuide"></div>
+    </div>
+    <div class="field"><label id="adjScopeLabel">O que ajustar?</label>
+      <input class="input" id="f-scope" placeholder=""></div>
+    <div class="field"><label>Descreva o ajuste</label>
+      <textarea class="textarea" id="f-text" placeholder="Explique com clareza o que você gostaria de mudar."></textarea></div>
+  </div>
+  <div class="foot">
+    <button class="btn btn-ghost" onclick="closeModals()">Cancelar</button>
+    <button class="btn btn-primary" onclick="sendAdjust()">Enviar solicitação</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const TOKEN=U.qs("c"), PID=U.qs("p"), POID=U.qs("post");
+let client, project, post, CID;
+const mgr=Data.manager();
+document.getElementById("studio").textContent=mgr.studio;
+document.getElementById("x1").innerHTML=U.icon("x");
+
+const isVideo=(t)=>t==="reel-9-16"||t==="reel-16-9";
+
+function mediaBlock(){
+  const t=TYPE[post.type];
+  // Etapa 2: se houver embed do Drive, troca o bloco de arte por <iframe src=post.embed>
+  if(post.embed){
+    return `<div class="detail-media ${t.ratio}"><iframe src="${post.embed}" style="width:100%;height:100%;border:0" allow="autoplay" allowfullscreen></iframe></div>`;
+  }
+  if(post.type==="carrossel"){
+    const n=post.slides||3;
+    let slides="";
+    for(let i=0;i<n;i++) slides+=`<div class="snapcard" style="width:78%"><div class="cover grad ${post.art} ratio-4-5" style="border-radius:var(--r-lg)"><div class="art-noise"></div><div class="veil"></div><div class="cap"><span class="badge">Slide ${i+1}/${n}</span></div></div></div>`;
+    return `<div><div class="scroller" style="margin:0;padding:0 0 14px">${slides}</div></div>`;
+  }
+  return `<div class="detail-media cover grad ${post.art} ${t.ratio}">
+      <div class="art-noise"></div>
+      ${isVideo(post.type)?`<div class="play">${U.icon('play')}</div>`:''}
+      <div class="type-chip">${U.icon(t.icon)} ${t.label}</div>
+    </div>`;
+}
+
+function actionArea(){
+  const st=post.status;
+  if(st==="aprovado") return `<div class="card pad center" style="background:var(--green-soft);border-color:var(--green)">
+    <div style="color:var(--green);margin-bottom:6px">${U.icon('check')}</div><strong>Conteúdo aprovado</strong>
+    <p class="meta-sm" style="margin-top:4px">Tudo certo com este post.</p>
+    <button class="btn btn-sm card" style="margin-top:12px" onclick="setStatus('pendente')">Reabrir</button></div>`;
+  if(st==="ajustes"||st==="reprovado"){
+    const r=post.request;
+    return `<div class="card pad">
+      <div class="row between"><span class="badge ${STATUS.post[st].cls}"><span class="pip"></span>${STATUS.post[st].label}</span></div>
+      ${r?`<div class="note-box" style="margin-top:14px"><strong>Você pediu — ${r.scope}:</strong><br>${r.text}</div>`:''}
+      <p class="meta-sm" style="margin-top:12px">O gestor foi avisado e vai trabalhar nos ajustes.</p>
+      <div class="row" style="gap:10px;margin-top:14px">
+        <button class="btn btn-primary grow" onclick="openAdjust()">Editar solicitação</button>
+        <button class="btn card" onclick="setStatus('aprovado')">Aprovar mesmo assim</button>
+      </div></div>`;
+  }
+  // pendente
+  return `<div class="card pad">
+    <strong>O que você achou deste conteúdo?</strong>
+    <div class="seg" style="margin-top:14px">
+      <button class="ok" onclick="setStatus('aprovado')">${U.icon('check')} Aprovar</button>
+      <button class="adj" onclick="openAdjust()">${U.icon('edit')} Solicitar ajustes</button>
+    </div>
+    <button class="btn btn-ghost btn-block" style="margin-top:10px;color:var(--red)" onclick="setStatus('reprovado',true)">Reprovar conteúdo</button>
+  </div>`;
+}
+
+function render(){
+  const st=STATUS.post[post.status], t=TYPE[post.type];
+  document.getElementById("who").textContent=project.name;
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <a class="meta-sm" href="projeto.html?c=${TOKEN}&p=${PID}">← ${project.name}</a>
+    </section>
+
+    <div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);align-items:start;gap:26px">
+      <div class="reveal" style="position:sticky;top:84px">
+        ${mediaBlock()}
+      </div>
+
+      <div class="col reveal" style="gap:18px">
+        <div>
+          <div class="row" style="gap:10px;margin-bottom:10px">
+            <span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>
+            <span class="badge">${U.icon(t.icon)} ${t.label}</span>
+          </div>
+          <h1 class="display" style="font-size:clamp(24px,4vw,34px)">${post.title}</h1>
+        </div>
+
+        ${post.note?`<div class="note-box">${U.icon('message')} <strong>Observação do gestor:</strong><br>${post.note}</div>`:''}
+
+        <div class="card pad">
+          <div class="eyebrow" style="margin-bottom:10px">Legenda</div>
+          <div class="caption-box">${post.caption||'<span class="dim">Sem legenda.</span>'}</div>
+        </div>
+
+        <div class="card pad">
+          <div class="kv"><span class="k">${U.icon('clock')} Data de publicação</span><strong>${U.fmtDate(post.date)}</strong></div>
+          <div class="kv"><span class="k">${U.icon('grid')} Formato</span><strong>${t.label}</strong></div>
+          <div class="kv"><span class="k">${U.icon('eye')} Status atual</span><span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span></div>
+        </div>
+
+        <div id="actions">${actionArea()}</div>
+      </div>
+    </div>
+
+    <div style="height:30px"></div>`;
+  U.reveal();
+}
+
+/* status changes (gravam no banco quando configurado) */
+async function setStatus(s,confirmFirst){
+  if(confirmFirst && !confirm("Reprovar este conteúdo?")) return;
+  await Store.setPostStatus(CID,PID,POID,s);
+  U.toast(s==="aprovado"?"Conteúdo aprovado ✅":(s==="reprovado"?"Conteúdo reprovado":"Status atualizado"));
+  render();
+}
+
+/* solicitar ajustes — instrução guiada por tipo */
+function openAdjust(){
+  const t=post.type;
+  let guide, scopeLabel, scopePh;
+  if(isVideo(t)){
+    guide="💡 Para vídeos: informe o segundo (ou intervalo) que deseja alterar — ex.: “00:08 a 00:12” — ou escreva “vídeo todo” se for geral.";
+    scopeLabel="Trecho do vídeo (segundo/intervalo)";
+    scopePh="Ex.: 00:08 a 00:12  ·  ou: vídeo todo";
+  } else if(t==="carrossel"){
+    guide="💡 Para carrossel: diga qual slide específico quer ajustar (ex.: “slide 2”) ou “todos os slides”.";
+    scopeLabel="Qual slide?";
+    scopePh="Ex.: slide 2  ·  ou: todos os slides";
+  } else {
+    guide="💡 Para artes/fotos: especifique o elemento (cor, texto, recorte, posição) que deseja mudar.";
+    scopeLabel="O que na arte?";
+    scopePh="Ex.: cor do título  ·  texto principal  ·  recorte";
+  }
+  document.getElementById("adjGuide").textContent=guide;
+  document.getElementById("adjScopeLabel").textContent=scopeLabel;
+  document.getElementById("f-scope").placeholder=scopePh;
+  document.getElementById("f-scope").value=post.request?.scope||"";
+  document.getElementById("f-text").value=post.request?.text||"";
+  openModal("adjModal");
+}
+async function sendAdjust(){
+  const scope=document.getElementById("f-scope").value.trim();
+  const text=document.getElementById("f-text").value.trim();
+  if(!text){ U.toast("Descreva o ajuste"); return; }
+  await Store.setPostRequest(CID,PID,POID,{ scope:scope||"Geral", text });
+  closeModals();
+  U.toast("Solicitação enviada — em ajustes");
+  render();
+}
+
+function openModal(id){document.getElementById("scrim").classList.add("open");document.getElementById(id).classList.add("open");}
+function closeModals(e){if(e&&e.target.closest(".modal"))return;
+  document.querySelectorAll(".modal").forEach(m=>m.classList.remove("open"));
+  document.getElementById("scrim").classList.remove("open");}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModals();});
+
+function start(){
+  client=Data.clientByToken(TOKEN); CID=client?client.id:null;
+  project=client?Data.project(CID,PID):null;
+  post=project?Data.post(CID,PID,POID):null;
+  if(client) document.getElementById("backLink").href='projeto.html?c='+TOKEN+'&p='+PID;
+  if(!post){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Conteúdo não encontrado.</div>'; return; }
+  render();
+}
+U.boot(start);
+</script>
+</body>
+</html>
