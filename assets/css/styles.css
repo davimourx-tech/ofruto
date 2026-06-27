@@ -386,6 +386,14 @@ select.select-bare{-webkit-appearance:none;appearance:none;background-image:none
   .topnav a{padding:7px 10px;font-size:13px}
   .section{padding:20px 0}
 }
+/* ---------- Seletor de capa (swatches) ---------- */
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.swatch{aspect-ratio:1/1;border-radius:10px;border:2px solid transparent;cursor:pointer;
+  overflow:hidden;position:relative;padding:0;transition:transform .15s var(--ease),border-color .15s}
+.swatch:hover{transform:translateY(-2px)}
+.swatch.on{border-color:#fff}
+.proj-thumb{width:60px;height:60px;border-radius:14px;flex:none;overflow:hidden;position:relative}
+
 /* ---------- Auth gate (senha do gestor) ---------- */
 .authgate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:24px;
   background:rgba(5,5,6,.92);backdrop-filter:blur(10px)}

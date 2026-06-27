@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Cliente · APROVA</title>
+<title>oFruto · Cliente</title>
 <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
 <body>
 
 <header class="topbar">
   <div class="wrap">
-    <a class="brand" href="hub.html"><span class="dot"></span> Selo Co. <small>gestor</small></a>
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
     <nav class="topnav">
       <a href="hub.html">← Hub</a>
     </nav>
@@ -32,12 +32,42 @@
         <option value="andamento">Em andamento</option>
         <option value="pronto">Pronto para visualizar</option>
       </select></div>
+    <div class="field"><label>Capa do projeto</label>
+      <div class="swatches" id="np-swatches"></div>
+      <div class="row" style="gap:12px;margin-top:12px;align-items:center">
+        <div class="proj-thumb cover grad art-1" id="np-preview"></div>
+        <label class="btn btn-sm card" for="np-file" id="np-uplabel" style="cursor:pointer"></label>
+        <input type="file" id="np-file" accept="image/*" class="hidden" onchange="npFile(this)">
+      </div>
+      <input class="input" id="np-coverurl" style="margin-top:10px" placeholder="ou cole o link de uma imagem" oninput="npUrl(this.value)"></div>
     <div class="field"><label>Mensagem de abertura (opcional)</label>
       <textarea class="textarea" id="f-pintro" placeholder="Esses são os conteúdos para aprovação de..."></textarea></div>
   </div>
   <div class="foot">
     <button class="btn btn-ghost" onclick="closeModals()">Cancelar</button>
     <button class="btn btn-primary" onclick="addProject()">Criar projeto</button>
+  </div>
+</div>
+
+<!-- Modal: capa do projeto -->
+<div class="modal" id="coverModal">
+  <div class="head"><strong>Capa do projeto</strong><button class="btn-icon" id="x3" onclick="closeModals()"></button></div>
+  <div class="body">
+    <div class="field"><label>Escolha um estilo</label>
+      <div class="swatches" id="cv-swatches"></div></div>
+    <div class="field"><label>Enviar foto do computador</label>
+      <div class="row" style="gap:12px;align-items:center">
+        <div class="proj-thumb cover grad art-1" id="cv-preview"></div>
+        <label class="btn btn-sm card" for="cv-file" id="cv-uplabel" style="cursor:pointer"></label>
+        <input type="file" id="cv-file" accept="image/*" class="hidden" onchange="cvFile(this)">
+      </div></div>
+    <div class="field"><label>Ou cole o link de uma imagem</label>
+      <input class="input" id="cv-url" placeholder="https://.../imagem.jpg" oninput="cvUrl(this.value)"></div>
+    <p class="hint">A foto fica guardada no seu Supabase (bucket “capas”).</p>
+  </div>
+  <div class="foot">
+    <button class="btn btn-ghost" onclick="closeModals()">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveCover()">Salvar capa</button>
   </div>
 </div>
 
@@ -60,8 +90,18 @@
 <script>
 const CID = U.qs("c");
 let client;
-["x1","x2"].forEach(id=>document.getElementById(id).innerHTML=U.icon("x"));
+["x1","x2","x3"].forEach(id=>document.getElementById(id).innerHTML=U.icon("x"));
 document.getElementById("i-link").innerHTML=U.icon("link");
+document.getElementById("np-uplabel").innerHTML = U.icon("upload")+" Enviar foto";
+document.getElementById("cv-uplabel").innerHTML = U.icon("upload")+" Enviar foto";
+
+function buildSwatches(containerId,current,onpick){
+  const arts=["art-1","art-2","art-3","art-4","art-5","art-6"];
+  document.getElementById(containerId).innerHTML = arts.map(a=>
+    `<button type="button" class="swatch cover grad ${a} ${a===current?'on':''}" onclick="${onpick}('${a}')"></button>`).join("");
+}
+function setPreview(id,cover){ const cv=U.coverAttrs(cover); const el=document.getElementById(id);
+  el.className='proj-thumb '+cv.cls; el.style.cssText=cv.style; }
 
 function clientLinkUrl(){
   const base = location.href.split("/gestor/")[0];
@@ -71,18 +111,25 @@ function clientLinkUrl(){
 function projectCard(p){
   const st = STATUS.project[p.status];
   const pr = Data.projectProgress(p);
+  const cv = U.coverAttrs(p.cover || (p.posts[0]?p.posts[0].art:'art-1'));
   return `
   <div class="card pad hover">
     <div class="row between wrap" style="gap:14px">
-      <a class="grow" style="min-width:220px" href="projeto.html?c=${CID}&p=${p.id}">
-        <div class="row" style="gap:10px;margin-bottom:8px">
-          <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
+      <a class="row grow" style="gap:14px;min-width:220px" href="projeto.html?c=${CID}&p=${p.id}">
+        <div class="proj-thumb ${cv.cls}" style="${cv.style}"><div class="art-noise"></div></div>
+        <div class="col">
+          <div class="row" style="gap:10px;margin-bottom:6px">
+            <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
+          </div>
+          <strong style="font-size:18px">${p.name}</strong>
+          <div class="meta-sm" style="margin-top:4px">${pr.total} posts · ${pr.ok} aprovados</div>
+          <div class="bar" style="margin-top:10px;max-width:260px"><i style="width:${pr.pct}%"></i></div>
         </div>
-        <strong style="font-size:18px">${p.name}</strong>
-        <div class="meta-sm" style="margin-top:4px">${pr.total} posts · ${pr.ok} aprovados</div>
-        <div class="bar" style="margin-top:12px;max-width:320px"><i style="width:${pr.pct}%"></i></div>
       </a>
-      <a class="btn btn-sm card nowrap" href="projeto.html?c=${CID}&p=${p.id}">Gerenciar ${U.icon("arrow")}</a>
+      <div class="row" style="gap:8px">
+        <button class="btn btn-sm card nowrap" onclick="openCover('${p.id}')">${U.icon("image")} Capa</button>
+        <a class="btn btn-sm card nowrap" href="projeto.html?c=${CID}&p=${p.id}">Gerenciar ${U.icon("arrow")}</a>
+      </div>
     </div>
   </div>`;
 }
@@ -135,16 +182,38 @@ function render(){
 function kpi(k,v,ic,c){return `<div class="card pad"><div class="row between"><span class="meta-sm">${k}</span><span class="dim">${U.icon(ic)}</span></div><div style="font-family:var(--serif);font-weight:700;font-size:36px;color:var(--text);letter-spacing:-.03em;margin-top:4px">${v}</div></div>`;}
 
 /* actions */
-function openProj(){ openModal("projModal"); }
+let NP_COVER='art-1';
+function openProj(){ NP_COVER='art-1'; document.getElementById("np-coverurl").value="";
+  buildSwatches('np-swatches','art-1','npPick'); setPreview('np-preview','art-1'); openModal("projModal"); }
+function npPick(a){ NP_COVER=a; document.getElementById('np-coverurl').value=''; buildSwatches('np-swatches',a,'npPick'); setPreview('np-preview',a); }
+function npUrl(v){ v=v.trim(); NP_COVER=v||'art-1'; buildSwatches('np-swatches', v?'':NP_COVER, 'npPick'); setPreview('np-preview',NP_COVER); }
+async function npFile(input){ const f=input.files[0]; if(!f) return;
+  U.toast('Enviando imagem...'); const url=await Store.uploadCover(f); input.value='';
+  if(url){ NP_COVER=url; document.getElementById('np-coverurl').value=url; buildSwatches('np-swatches','','npPick'); setPreview('np-preview',url); U.toast('Imagem enviada ✅'); } }
+
 async function addProject(){
   const name=document.getElementById("f-pname").value.trim();
   if(!name){U.toast("Informe o nome");return;}
   await Store.addProject(CID, { name,
     status:document.getElementById("f-pstatus").value,
-    intro:document.getElementById("f-pintro").value.trim() });
+    intro:document.getElementById("f-pintro").value.trim(),
+    cover:NP_COVER });
   document.getElementById("f-pname").value=""; document.getElementById("f-pintro").value="";
   closeModals(); U.toast("Projeto criado"); render();
 }
+
+/* editar capa de projeto existente */
+let CV_COVER='art-1', CV_TARGET=null;
+function openCover(pid){ CV_TARGET=pid; const p=Data.project(CID,pid);
+  CV_COVER=p.cover||'art-1'; const isUrl=/^https?:/i.test(CV_COVER);
+  document.getElementById('cv-url').value=isUrl?CV_COVER:'';
+  buildSwatches('cv-swatches', isUrl?'':CV_COVER, 'cvPick'); setPreview('cv-preview',CV_COVER); openModal('coverModal'); }
+function cvPick(a){ CV_COVER=a; document.getElementById('cv-url').value=''; buildSwatches('cv-swatches',a,'cvPick'); setPreview('cv-preview',a); }
+function cvUrl(v){ v=v.trim(); CV_COVER=v||'art-1'; buildSwatches('cv-swatches', v?'':CV_COVER, 'cvPick'); setPreview('cv-preview',CV_COVER); }
+async function cvFile(input){ const f=input.files[0]; if(!f) return;
+  U.toast('Enviando imagem...'); const url=await Store.uploadCover(f); input.value='';
+  if(url){ CV_COVER=url; document.getElementById('cv-url').value=url; buildSwatches('cv-swatches','','cvPick'); setPreview('cv-preview',url); U.toast('Imagem enviada ✅'); } }
+async function saveCover(){ await Store.setProjectCover(CID,CV_TARGET,CV_COVER); closeModals(); U.toast("Capa atualizada"); render(); }
 function openLink(){
   document.getElementById("clientLink").textContent = clientLinkUrl();
   document.getElementById("openClient").href = clientLinkUrl();

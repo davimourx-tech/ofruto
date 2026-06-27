@@ -21,7 +21,7 @@ window.APP_CONFIG = {
   /* Seus dados (aparecem para o cliente e no WhatsApp) */
   MANAGER: {
     name:     "Davi Moura",
-    studio:   "Selo Co.",
-    whatsapp: "5519994291151"   // 55 (Brasil) + 19 (DDD) + número — CONFIRA se está certo
+    studio:   "oFruto",
+    whatsapp: "5519994299115"   // 55 + 19 + 994299115
   }
 };

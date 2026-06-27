@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sua área de conteúdos · APROVA</title>
+<title>oFruto · Sua área de conteúdos</title>
 <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
 <body>
@@ -30,8 +30,9 @@ function projectCard(p){
   const st=STATUS.project[p.status];
   const pr=Data.projectProgress(p);
   const clickable = p.status!=="breve";
+  const cv=U.coverAttrs(p.cover || (p.posts[0]?p.posts[0].art:'art-6'));
   const inner=`
-    <div class="cover grad ${p.posts[0]?p.posts[0].art:'art-6'} ratio-16-9" style="border-radius:var(--r-lg)">
+    <div class="${cv.cls} ratio-16-9" style="border-radius:var(--r-lg);${cv.style}">
       <div class="art-noise"></div>
       <div class="veil"></div>
       <div class="type-chip">${U.icon(st.live?'clock':'star')} ${st.label}</div>

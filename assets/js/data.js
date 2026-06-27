@@ -17,7 +17,7 @@
    ============================================================ */
 
 const MANAGER = Object.assign(
-  { name: "Davi Moura", studio: "Selo Co.", whatsapp: "5599999999999" },
+  { name: "Davi Moura", studio: "oFruto", whatsapp: "5599999999999" },
   (window.APP_CONFIG && window.APP_CONFIG.MANAGER) || {}
 );
 
@@ -276,7 +276,8 @@ const U = {
       megaphone:'<path d="M3 11v2a1 1 0 0 0 1 1h2l9 5V5L6 10H4a1 1 0 0 0-1 1Z"/><path d="M15 8a4 4 0 0 1 0 8"/>',
       sparkle:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/>',
       clapper:'<path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z"/><path d="m6.2 5.3 3.1 3.9"/><path d="m12.4 3.4 3.1 4"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
-      calendar:'<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/>'
+      calendar:'<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/>',
+      upload:'<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>'
     };
     return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p[name]||""}</svg>`;
   }
@@ -331,7 +332,7 @@ const Store = {
         id:c.id, token:c.token, name:c.name, handle:c.handle||'', color:c.color||'art-1',
         archived:!!c.archived, message:c.message||'',
         projects: projects.filter(p=>p.client_id===c.id).map(p=>({
-          id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'',
+          id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'', cover:p.cover||'',
           posts: posts.filter(x=>x.project_id===p.id).map(postFromDb)
         }))
       }));
@@ -358,14 +359,28 @@ const Store = {
   async setClientMessage(id,msg){ Data.client(id).message=msg;
     if(this.sb) await this.sb.from('clients').update({message:msg}).eq('id',id); },
 
-  async addProject(cid,{name,status,intro}){
-    const p={ id:genId(), name, status:status||'breve', intro:intro||'', posts:[] };
+  async addProject(cid,{name,status,intro,cover}){
+    const p={ id:genId(), name, status:status||'breve', intro:intro||'', cover:cover||'art-1', posts:[] };
     Data.client(cid).projects.push(p);
-    if(this.sb) await this.sb.from('projects').insert({ id:p.id, client_id:cid, name:p.name, status:p.status, intro:p.intro, sort:0 });
+    if(this.sb) await this.sb.from('projects').insert({ id:p.id, client_id:cid, name:p.name, status:p.status, intro:p.intro, cover:p.cover, sort:0 });
     return p;
   },
   async setProjectStatus(cid,pid,status){ Data.project(cid,pid).status=status;
     if(this.sb) await this.sb.from('projects').update({status}).eq('id',pid); },
+  async setProjectCover(cid,pid,cover){ Data.project(cid,pid).cover=cover;
+    if(this.sb) await this.sb.from('projects').update({cover}).eq('id',pid); },
+
+  /* upload de imagem de capa -> Supabase Storage (bucket 'capas') -> retorna URL pública */
+  async uploadCover(file){
+    if(!this.sb){ U.toast('Configure o Supabase para enviar imagens'); return null; }
+    if(file.size > 8*1024*1024){ U.toast('Imagem muito grande (máx. 8MB)'); return null; }
+    const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+    const path='capa-'+Date.now()+'-'+Math.random().toString(36).slice(2,7)+'.'+ext;
+    const up=await this.sb.storage.from('capas').upload(path, file, { upsert:true, contentType:file.type||'image/jpeg' });
+    if(up.error){ console.error(up.error); U.toast('Erro ao enviar — confira o bucket "capas"'); return null; }
+    const { data } = this.sb.storage.from('capas').getPublicUrl(path);
+    return data.publicUrl;
+  },
 
   async savePost(cid,pid,data,editingId){
     const proj=Data.project(cid,pid);
@@ -416,6 +431,13 @@ const Auth = {
     });
   },
   logout(){ sessionStorage.removeItem('selo_mgr'); location.href='../index.html'; }
+};
+
+/* capa de projeto: art-X (preset) ou URL de imagem */
+U.coverAttrs = function(cover){
+  cover = cover || 'art-1';
+  if(/^https?:/i.test(cover)) return { cls:'cover grad', style:"background-image:url('"+cover.replace(/'/g,'%27')+"')" };
+  return { cls:'cover grad '+cover, style:'' };
 };
 
 /* boot helper: (gestor) pede senha -> carrega dados -> renderiza */

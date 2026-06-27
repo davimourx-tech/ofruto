@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Hub do Gestor · APROVA</title>
+<title>oFruto · Hub</title>
 <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
 <header class="topbar">
   <div class="wrap">
     <a class="brand" href="hub.html">
-      <span class="dot"></span> Selo Co. <small>gestor</small>
+      <span class="dot"></span> oFruto <small>gestor</small>
     </a>
     <nav class="topnav">
       <a href="hub.html" class="active">Hub</a>
@@ -28,7 +28,7 @@
     <div class="eyebrow">Painel do gestor</div>
     <div class="row between wrap" style="gap:18px">
       <div>
-        <h1 class="display">Olá, <span id="mname">Davi</span>.<br>Seus clientes em um só lugar.</h1>
+        <h1 class="display">Opa, todos os clientes<br>estão aqui.</h1>
         <p class="lead" style="margin-top:14px">Acompanhe o progresso de aprovação de cada cliente, edite legendas, deixe observações e gere o link de visualização.</p>
       </div>
       <button class="btn btn-primary btn-lg" onclick="openAdd()">
@@ -110,7 +110,6 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/data.js"></script>
 <script>
-document.getElementById("mname").textContent = MANAGER.name;
 document.getElementById("i-plus").innerHTML = U.icon("plus");
 ["i-x1","i-x2"].forEach(id=>document.getElementById(id).innerHTML=U.icon("x"));
 
