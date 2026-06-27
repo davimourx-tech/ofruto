@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cliente · APROVA</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> Selo Co. <small>gestor</small></a>
+    <nav class="topnav">
+      <a href="hub.html">← Hub</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<!-- Modal: novo projeto -->
+<div class="scrim" id="scrim" onclick="closeModals(event)"></div>
+<div class="modal" id="projModal">
+  <div class="head"><strong>Novo projeto</strong><button class="btn-icon" id="x1" onclick="closeModals()"></button></div>
+  <div class="body">
+    <div class="field"><label>Nome do projeto</label>
+      <input class="input" id="f-pname" placeholder="Ex.: Conteúdos de Agosto"></div>
+    <div class="field"><label>Status inicial</label>
+      <select class="input" id="f-pstatus">
+        <option value="breve">Em breve disponível</option>
+        <option value="andamento">Em andamento</option>
+        <option value="pronto">Pronto para visualizar</option>
+      </select></div>
+    <div class="field"><label>Mensagem de abertura (opcional)</label>
+      <textarea class="textarea" id="f-pintro" placeholder="Esses são os conteúdos para aprovação de..."></textarea></div>
+  </div>
+  <div class="foot">
+    <button class="btn btn-ghost" onclick="closeModals()">Cancelar</button>
+    <button class="btn btn-primary" onclick="addProject()">Criar projeto</button>
+  </div>
+</div>
+
+<!-- Modal: link do cliente -->
+<div class="modal" id="linkModal">
+  <div class="head"><strong>Link de visualização</strong><button class="btn-icon" id="x2" onclick="closeModals()"></button></div>
+  <div class="body">
+    <p class="muted" style="margin-bottom:14px">Envie este link para o cliente. Ele abre a área dele já com a saudação do horário.</p>
+    <div class="linkrow"><span id="i-link"></span><code id="clientLink"></code></div>
+    <div class="row" style="gap:10px;margin-top:16px">
+      <button class="btn btn-primary grow" onclick="copyLink()">Copiar link</button>
+      <a class="btn card grow" id="openClient" target="_blank">Abrir como cliente</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const CID = U.qs("c");
+let client;
+["x1","x2"].forEach(id=>document.getElementById(id).innerHTML=U.icon("x"));
+document.getElementById("i-link").innerHTML=U.icon("link");
+
+function clientLinkUrl(){
+  const base = location.href.split("/gestor/")[0];
+  return `${base}/cliente/index.html?c=${client.token||CID}`;
+}
+
+function projectCard(p){
+  const st = STATUS.project[p.status];
+  const pr = Data.projectProgress(p);
+  return `
+  <div class="card pad hover">
+    <div class="row between wrap" style="gap:14px">
+      <a class="grow" style="min-width:220px" href="projeto.html?c=${CID}&p=${p.id}">
+        <div class="row" style="gap:10px;margin-bottom:8px">
+          <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
+        </div>
+        <strong style="font-size:18px">${p.name}</strong>
+        <div class="meta-sm" style="margin-top:4px">${pr.total} posts · ${pr.ok} aprovados</div>
+        <div class="bar" style="margin-top:12px;max-width:320px"><i style="width:${pr.pct}%"></i></div>
+      </a>
+      <a class="btn btn-sm card nowrap" href="projeto.html?c=${CID}&p=${p.id}">Gerenciar ${U.icon("arrow")}</a>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const pr = Data.progress(client);
+  document.getElementById("root").innerHTML = `
+    <section class="section">
+      <a class="meta-sm" href="hub.html">← Todos os clientes</a>
+      <div class="row between wrap" style="gap:18px;margin-top:14px">
+        <div class="row" style="gap:18px">
+          <div class="avatar lg ${client.color}">${U.initials(client.name)}</div>
+          <div class="col">
+            <h1 class="display" style="font-size:clamp(28px,5vw,44px)">${client.name}</h1>
+            <span class="muted">${client.handle} · ${client.archived?'Arquivado':'Ativo'}</span>
+          </div>
+        </div>
+        <div class="row" style="gap:10px">
+          <button class="btn card" onclick="openLink()">${U.icon("link")} Link do cliente</button>
+          <button class="btn btn-primary" onclick="openProj()">${U.icon("plus")} Novo projeto</button>
+        </div>
+      </div>
+
+      <div class="grid c4 stagger" style="margin-top:24px">
+        ${kpi("Posts",pr.total,"grid","var(--text)")}
+        ${kpi("Aprovados",pr.ok,"check","var(--green)")}
+        ${kpi("Em ajustes",pr.adj+pr.rej,"clock","var(--amber)")}
+        ${kpi("Aguardando",pr.pend,"eye","var(--blue)")}
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="card pad" style="background:var(--surface-2)">
+        <div class="row between">
+          <div class="eyebrow" style="margin:0">Mensagem fixada para o cliente</div>
+          <button class="btn btn-sm card" onclick="location.href='hub.html'">Editar no hub</button>
+        </div>
+        <p class="muted" style="margin-top:10px">${client.message? client.message : '<span class="dim">Nenhuma mensagem definida. (Edite pelo botão de mensagem no Hub.)</span>'}</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="display" style="margin-bottom:16px">Projetos</h2>
+      <div class="col stagger" id="projList" style="gap:14px">
+        ${client.projects.map(projectCard).join("") || '<div class="empty card pad">Nenhum projeto ainda.</div>'}
+      </div>
+    </section>`;
+  U.reveal();
+}
+function kpi(k,v,ic,c){return `<div class="card pad"><div class="row between"><span class="meta-sm">${k}</span><span class="dim">${U.icon(ic)}</span></div><div style="font-family:var(--serif);font-weight:700;font-size:36px;color:var(--text);letter-spacing:-.03em;margin-top:4px">${v}</div></div>`;}
+
+/* actions */
+function openProj(){ openModal("projModal"); }
+async function addProject(){
+  const name=document.getElementById("f-pname").value.trim();
+  if(!name){U.toast("Informe o nome");return;}
+  await Store.addProject(CID, { name,
+    status:document.getElementById("f-pstatus").value,
+    intro:document.getElementById("f-pintro").value.trim() });
+  document.getElementById("f-pname").value=""; document.getElementById("f-pintro").value="";
+  closeModals(); U.toast("Projeto criado"); render();
+}
+function openLink(){
+  document.getElementById("clientLink").textContent = clientLinkUrl();
+  document.getElementById("openClient").href = clientLinkUrl();
+  openModal("linkModal");
+}
+function copyLink(){ navigator.clipboard?.writeText(clientLinkUrl()); U.toast("Link copiado!"); }
+
+function openModal(id){document.getElementById("scrim").classList.add("open");document.getElementById(id).classList.add("open");}
+function closeModals(e){if(e&&e.target.closest(".modal"))return;
+  document.querySelectorAll(".modal").forEach(m=>m.classList.remove("open"));
+  document.getElementById("scrim").classList.remove("open");}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModals();});
+
+function start(){
+  client = Data.client(CID);
+  if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="hub.html">Voltar ao hub</a></div>'; return; }
+  render();
+}
+U.boot(start, {manager:true});
+</script>
+</body>
+</html>

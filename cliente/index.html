@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sua área de conteúdos · APROVA</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand"><span class="dot"></span> <span id="studio">APROVA</span></span>
+    <span class="topnav"><span class="badge" id="who"></span></span>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const TOKEN=U.qs("c");
+let client;
+const mgr=Data.manager();
+document.getElementById("studio").textContent=mgr.studio;
+
+function projectCard(p){
+  const st=STATUS.project[p.status];
+  const pr=Data.projectProgress(p);
+  const clickable = p.status!=="breve";
+  const inner=`
+    <div class="cover grad ${p.posts[0]?p.posts[0].art:'art-6'} ratio-16-9" style="border-radius:var(--r-lg)">
+      <div class="art-noise"></div>
+      <div class="veil"></div>
+      <div class="type-chip">${U.icon(st.live?'clock':'star')} ${st.label}</div>
+      <div class="cap">
+        <strong style="font-size:19px;display:block">${p.name}</strong>
+        <span class="meta-sm" style="color:#cfd2da">${pr.total} conteúdos${p.status==='pronto'?` · ${pr.ok} aprovados`:''}</span>
+      </div>
+    </div>`;
+  if(clickable){
+    return `<a class="card hover reveal" style="overflow:hidden" href="projeto.html?c=${TOKEN}&p=${p.id}">${inner}</a>`;
+  }
+  return `<div class="card reveal" style="overflow:hidden;opacity:.6">${inner}</div>`;
+}
+
+function render(){
+  const first=client.name.split(" ")[0];
+  document.getElementById("who").textContent=client.handle;
+  const visible=client.projects;
+  document.getElementById("root").innerHTML=`
+    <section class="hello reveal">
+      <div class="wave">👋</div>
+      <h1 class="display" style="margin-top:10px">Oi, ${first}.<br><span style="color:var(--text-2);font-weight:400">${cap(U.greet())}!</span></h1>
+      <p class="lead" style="margin-top:14px">Qual projeto vamos visualizar hoje?</p>
+    </section>
+
+    ${client.message?`<section class="section reveal">
+      <div class="card pad" style="background:var(--surface-2);border-left:3px solid var(--red)">
+        <div class="row" style="gap:12px;align-items:flex-start">
+          <div class="avatar" style="background:var(--red);flex:none">${U.initials(mgr.name)}</div>
+          <div><div class="meta-sm" style="margin-bottom:4px">Recado de ${mgr.name}</div>
+          <p>${client.message}</p></div>
+        </div>
+      </div>
+    </section>`:''}
+
+    <section class="section">
+      <div class="eyebrow">Seus projetos</div>
+      <div class="grid c2 stagger">
+        ${visible.map(projectCard).join("")||'<div class="empty card pad">Nenhum projeto disponível ainda.</div>'}
+      </div>
+    </section>
+
+    <section class="section center reveal" style="padding-top:30px">
+      <p class="dim" style="font-size:13px">Área de aprovação · ${mgr.studio}</p>
+    </section>`;
+  U.reveal();
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+function start(){
+  client = Data.clientByToken(TOKEN);
+  if(!client){ document.getElementById("root").innerHTML='<section class="section center" style="padding-top:60px"><h1 class="display">Link inválido</h1><p class="lead" style="margin:14px auto">Esse link de visualização não foi encontrado. Peça um novo ao seu gestor.</p></section>'; return; }
+  render();
+}
+U.boot(start);
+</script>
+</body>
+</html>

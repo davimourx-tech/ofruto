@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Calendário · EST</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" id="brandLink"><span class="dot"></span> <span id="studio">EST</span></a>
+    <span class="topnav"><span class="badge" id="who"></span></span>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const TOKEN=U.qs("c"), PID=U.qs("p");
+let client, project;
+const mgr=Data.manager();
+document.getElementById("studio").textContent=mgr.studio;
+document.getElementById("brandLink").href="index.html?c="+TOKEN;
+
+const DOW=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const MONTHS=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+
+function thumb(post,cls){ const t=TYPE[post.type];
+  return `<span class="${cls} cover grad ${post.art}"><span class="art-noise"></span></span>`; }
+
+function postLink(id){ return `post.html?c=${TOKEN}&p=${PID}&post=${id}`; }
+
+/* agrupa posts por mês-chave e por dia */
+function group(){
+  const byMonth={};
+  project.posts.slice().sort((a,b)=>(a.date||"").localeCompare(b.date||"")).forEach(p=>{
+    if(!p.date) return;
+    const [y,m]=p.date.split("-").map(Number);
+    const key=y+"-"+m;
+    (byMonth[key]=byMonth[key]||{y,m,days:{}});
+    const day=Number(p.date.split("-")[2]);
+    (byMonth[key].days[day]=byMonth[key].days[day]||[]).push(p);
+  });
+  return byMonth;
+}
+
+function calMonth(mo){
+  const first=new Date(mo.y, mo.m-1, 1).getDay();   // 0=Dom
+  const total=new Date(mo.y, mo.m, 0).getDate();
+  let cells="";
+  DOW.forEach(d=>cells+=`<div class="dow">${d}</div>`);
+  for(let i=0;i<first;i++) cells+=`<div class="cell empty"></div>`;
+  for(let d=1; d<=total; d++){
+    const posts=mo.days[d]||[];
+    const items=posts.map(p=>`
+      <a class="cal-post" href="${postLink(p.id)}" title="${p.title}">
+        ${thumb(p,"cal-thumb")}
+        <span class="nm">${p.title}</span>
+      </a>`).join("");
+    cells+=`<div class="cell ${posts.length?'has':''}"><div class="d">${d}</div>${items}</div>`;
+  }
+  return `<div class="cal-month-title">${MONTHS[mo.m-1]} ${mo.y}</div><div class="cal">${cells}</div>`;
+}
+
+function agenda(byMonth){
+  let rows="";
+  Object.values(byMonth).forEach(mo=>{
+    Object.keys(mo.days).map(Number).sort((a,b)=>a-b).forEach(d=>{
+      mo.days[d].forEach(p=>{
+        const t=TYPE[p.type], st=STATUS.post[p.status];
+        const wd=DOW[new Date(mo.y,mo.m-1,d).getDay()];
+        rows+=`
+        <div class="agenda-row reveal">
+          <div class="agenda-date"><div class="num">${String(d).padStart(2,'0')}</div><div class="mo">${MONTHS[mo.m-1].slice(0,3)} · ${wd}</div></div>
+          <a class="agenda-post" href="${postLink(p.id)}">
+            ${thumb(p,"agenda-thumb")}
+            <div class="grow" style="min-width:0">
+              <div class="row" style="gap:7px;margin-bottom:5px">${U.icon(t.icon)}<strong style="font-size:14px">${p.title}</strong></div>
+              <span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>
+            </div>
+            ${U.icon('arrow')}
+          </a>
+        </div>`;
+      });
+    });
+  });
+  return `<div class="agenda">${rows}</div>`;
+}
+
+function render(){
+  document.getElementById("who").textContent=project.name;
+  const byMonth=group();
+  const hasPosts=Object.keys(byMonth).length>0;
+  const months=Object.values(byMonth).map(calMonth).join('<div style="height:30px"></div>');
+  document.getElementById("root").innerHTML=`
+    <section class="hello reveal">
+      <a class="meta-sm" href="projeto.html?c=${TOKEN}&p=${PID}">← ${project.name}</a>
+      <div class="eyebrow" style="margin:18px 0 0">Calendário de publicação</div>
+      <h1 class="display" style="font-size:clamp(28px,6vw,46px);margin-top:8px">Todos os conteúdos por data</h1>
+      <p class="lead" style="margin-top:14px">Toque em qualquer conteúdo para abrir e visualizar.</p>
+    </section>
+
+    <section class="section">
+      ${hasPosts? `
+        <div class="only-wide">${months}</div>
+        <div class="only-narrow">${agenda(byMonth)}</div>`
+      : '<div class="empty card pad">Nenhum conteúdo com data ainda.</div>'}
+    </section>`;
+  U.reveal();
+}
+
+function start(){
+  client = Data.clientByToken(TOKEN);
+  project = client ? Data.project(client.id, PID) : null;
+  if(!project){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Projeto não encontrado. <a href="index.html?c='+TOKEN+'">Voltar</a></div>'; return; }
+  render();
+}
+U.boot(start);
+</script>
+</body>
+</html>

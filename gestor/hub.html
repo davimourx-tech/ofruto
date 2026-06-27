@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hub do Gestor · APROVA</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<!-- Topbar -->
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html">
+      <span class="dot"></span> Selo Co. <small>gestor</small>
+    </a>
+    <nav class="topnav">
+      <a href="hub.html" class="active">Hub</a>
+      <a href="../index.html">Sair</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap pagepad">
+
+  <!-- Hero / resumo geral -->
+  <section class="section">
+    <div class="eyebrow">Painel do gestor</div>
+    <div class="row between wrap" style="gap:18px">
+      <div>
+        <h1 class="display">Olá, <span id="mname">Davi</span>.<br>Seus clientes em um só lugar.</h1>
+        <p class="lead" style="margin-top:14px">Acompanhe o progresso de aprovação de cada cliente, edite legendas, deixe observações e gere o link de visualização.</p>
+      </div>
+      <button class="btn btn-primary btn-lg" onclick="openAdd()">
+        <span id="i-plus"></span> Adicionar cliente
+      </button>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid c4 stagger" id="kpis" style="margin-top:26px"></div>
+  </section>
+
+  <!-- Clientes ativos -->
+  <section class="section">
+    <div class="row between" style="margin-bottom:16px">
+      <h2 class="display">Clientes ativos</h2>
+      <span class="badge" id="activeCount"></span>
+    </div>
+    <div class="col stagger" id="clientList" style="gap:14px"></div>
+  </section>
+
+  <!-- Arquivados -->
+  <section class="section" id="archivedSection">
+    <div class="row between" style="margin-bottom:16px">
+      <h2 class="display" style="font-size:24px">Arquivados</h2>
+      <span class="badge" id="archCount"></span>
+    </div>
+    <div class="col" id="archList" style="gap:12px"></div>
+  </section>
+
+</main>
+
+<!-- Modal: adicionar cliente -->
+<div class="scrim" id="scrim" onclick="closeModals(event)"></div>
+<div class="modal" id="addModal">
+  <div class="head">
+    <strong>Adicionar cliente</strong>
+    <button class="btn-icon" onclick="closeModals()" id="i-x1"></button>
+  </div>
+  <div class="body">
+    <div class="field">
+      <label>Nome do cliente</label>
+      <input class="input" id="f-name" placeholder="Ex.: Atlas Café">
+    </div>
+    <div class="field">
+      <label>@ do Instagram</label>
+      <input class="input" id="f-handle" placeholder="@atlascafe">
+    </div>
+    <div class="field">
+      <label>Primeiro projeto (opcional)</label>
+      <input class="input" id="f-proj" placeholder="Ex.: Conteúdos de Julho">
+    </div>
+    <p class="hint">Prototipo: o cliente é criado só nesta sessão. Na Etapa 2 isso salva no banco.</p>
+  </div>
+  <div class="foot">
+    <button class="btn btn-ghost" onclick="closeModals()">Cancelar</button>
+    <button class="btn btn-primary" onclick="addClient()">Adicionar</button>
+  </div>
+</div>
+
+<!-- Modal: mensagem para o cliente -->
+<div class="modal" id="msgModal">
+  <div class="head">
+    <strong>Mensagem para <span id="msg-who"></span></strong>
+    <button class="btn-icon" onclick="closeModals()" id="i-x2"></button>
+  </div>
+  <div class="body">
+    <div class="field">
+      <label>Sua mensagem (aparece no topo da área do cliente)</label>
+      <textarea class="textarea" id="f-msg" placeholder="Ex.: Deixei o reel principal pra você ver primeiro..."></textarea>
+    </div>
+  </div>
+  <div class="foot">
+    <button class="btn btn-ghost" onclick="closeModals()">Cancelar</button>
+    <button class="btn btn-primary" onclick="saveMsg()">Salvar mensagem</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+document.getElementById("mname").textContent = MANAGER.name;
+document.getElementById("i-plus").innerHTML = U.icon("plus");
+["i-x1","i-x2"].forEach(id=>document.getElementById(id).innerHTML=U.icon("x"));
+
+let MSG_TARGET = null;
+
+function statusBreakdown(){
+  let ok=0,pend=0,adj=0,total=0,clients=Data.activeClients().length;
+  Data.activeClients().forEach(c=>{const p=Data.progress(c);ok+=p.ok;pend+=p.pend;adj+=p.adj+p.rej;total+=p.total;});
+  return {ok,pend,adj,total,clients};
+}
+
+function renderKpis(){
+  const s = statusBreakdown();
+  const items = [
+    {k:"Clientes ativos", v:s.clients, ic:"user"},
+    {k:"Posts aprovados", v:s.ok, ic:"check"},
+    {k:"Aguardando você", v:s.adj, ic:"clock"},
+    {k:"Aguardando cliente", v:s.pend, ic:"eye"}
+  ];
+  document.getElementById("kpis").innerHTML = items.map(i=>`
+    <div class="card pad">
+      <div class="row between">
+        <span class="meta-sm">${i.k}</span>
+        <span class="dim">${U.icon(i.ic)}</span>
+      </div>
+      <div style="font-family:var(--serif);font-weight:700;font-size:40px;margin-top:6px;color:var(--text);letter-spacing:-.03em">${i.v}</div>
+    </div>`).join("");
+}
+
+function clientCard(c){
+  const pr = Data.progress(c);
+  const need = pr.adj + pr.rej;
+  const projChips = c.projects.map(p=>{
+    const st = STATUS.project[p.status];
+    return `<span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${p.name}</span>`;
+  }).join("");
+  return `
+  <div class="card pad hover">
+    <div class="row between wrap" style="gap:16px">
+      <a class="row grow" style="gap:16px;min-width:240px" href="cliente.html?c=${c.id}">
+        <div class="avatar lg ${c.color}">${U.initials(c.name)}</div>
+        <div class="col">
+          <strong style="font-size:17px">${c.name}</strong>
+          <span class="meta-sm">${c.handle} · ${pr.total} posts</span>
+          <div class="row wrap" style="gap:7px;margin-top:9px">${projChips||'<span class="meta-sm">Sem projetos</span>'}</div>
+        </div>
+      </a>
+
+      <div class="row" style="gap:22px">
+        <div class="col center" style="gap:6px">
+          <div class="ring" style="--p:${pr.pct}"><b>${pr.pct}%</b></div>
+          <span class="meta-sm">aprovado</span>
+        </div>
+        ${need>0?`<div class="badge is-ajustes"><span class="pip"></span>${need} aguardando você</div>`:''}
+      </div>
+
+      <div class="row" style="gap:8px">
+        <button class="btn-icon card" title="Mensagem" onclick="openMsg('${c.id}')">${U.icon("message")}</button>
+        <a class="btn-icon card" title="Abrir" href="cliente.html?c=${c.id}">${U.icon("arrow")}</a>
+        <button class="btn-icon card" title="Arquivar" onclick="archive('${c.id}')">${U.icon("archive")}</button>
+        <button class="btn-icon card" title="Excluir" onclick="del('${c.id}')">${U.icon("trash")}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render(){
+  renderKpis();
+  const act = Data.activeClients();
+  document.getElementById("clientList").innerHTML = act.map(clientCard).join("") ||
+    `<div class="empty card pad">Nenhum cliente ativo. Clique em “Adicionar cliente”.</div>`;
+  document.getElementById("activeCount").textContent = act.length + " ativos";
+
+  const arch = Data.archivedClients();
+  document.getElementById("archivedSection").classList.toggle("hidden", arch.length===0);
+  document.getElementById("archCount").textContent = arch.length + " arquivados";
+  document.getElementById("archList").innerHTML = arch.map(c=>`
+    <div class="card pad row between">
+      <div class="row" style="gap:14px">
+        <div class="avatar ${c.color}" style="opacity:.6">${U.initials(c.name)}</div>
+        <div class="col"><strong>${c.name}</strong><span class="meta-sm">${c.handle}</span></div>
+      </div>
+      <div class="row" style="gap:8px">
+        <button class="btn btn-sm card" onclick="unarchive('${c.id}')">Reativar</button>
+        <button class="btn-icon card" onclick="del('${c.id}')">${U.icon("trash")}</button>
+      </div>
+    </div>`).join("");
+  U.reveal();
+}
+
+/* actions (gravam no Supabase quando configurado; em demo só na memória) */
+async function archive(id){ await Store.setArchived(id,true); U.toast("Cliente arquivado"); render(); }
+async function unarchive(id){ await Store.setArchived(id,false); U.toast("Cliente reativado"); render(); }
+async function del(id){
+  if(!confirm("Excluir este cliente e todos os projetos?")) return;
+  await Store.deleteClient(id); U.toast("Cliente excluído"); render();
+}
+function openAdd(){ openModal("addModal"); }
+async function addClient(){
+  const name=document.getElementById("f-name").value.trim();
+  if(!name){ U.toast("Informe o nome"); return; }
+  const handle=document.getElementById("f-handle").value.trim();
+  const projName=document.getElementById("f-proj").value.trim();
+  await Store.addClient({ name, handle, projName });
+  ["f-name","f-handle","f-proj"].forEach(i=>document.getElementById(i).value="");
+  closeModals(); U.toast("Cliente adicionado"); render();
+}
+function openMsg(id){ MSG_TARGET=id; const c=Data.client(id);
+  document.getElementById("msg-who").textContent=c.name;
+  document.getElementById("f-msg").value=c.message||""; openModal("msgModal"); }
+async function saveMsg(){ await Store.setClientMessage(MSG_TARGET, document.getElementById("f-msg").value.trim());
+  closeModals(); U.toast("Mensagem salva"); }
+
+/* modal plumbing */
+function openModal(id){ document.getElementById("scrim").classList.add("open"); document.getElementById(id).classList.add("open"); }
+function closeModals(e){ if(e&&e.target.closest(".modal"))return;
+  document.querySelectorAll(".modal").forEach(m=>m.classList.remove("open"));
+  document.getElementById("scrim").classList.remove("open"); }
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeModals(); });
+
+U.boot(render, {manager:true});
+</script>
+</body>
+</html>

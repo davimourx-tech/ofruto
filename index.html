@@ -3,90 +3,68 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sua área de conteúdos · APROVA</title>
-<link rel="stylesheet" href="../assets/css/styles.css">
+<title>APROVA · Sistema de aprovação de conteúdo</title>
+<link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
 
 <header class="topbar">
   <div class="wrap">
-    <span class="brand"><span class="dot"></span> <span id="studio">APROVA</span></span>
-    <span class="topnav"><span class="badge" id="who"></span></span>
+    <span class="brand"><span class="dot"></span> Selo Co.</span>
+    <span class="topnav"><span class="badge">protótipo · etapa 1</span></span>
   </div>
 </header>
 
-<main class="wrap pagepad" id="root"></main>
+<main class="wrap pagepad">
+  <section class="section center" style="padding-top:46px">
+    <div class="eyebrow" style="justify-content:center">Sistema de aprovação de conteúdo</div>
+    <h1 class="display" style="max-width:16ch;margin:0 auto">Aprovação de conteúdo, do seu jeito.</h1>
+    <p class="lead" style="margin:18px auto 0">Demonstração navegável das duas interfaces. Escolha por onde entrar.</p>
+  </section>
+
+  <section class="section">
+    <div class="grid c2" style="max-width:860px;margin:0 auto">
+      <a class="card hover pad reveal" href="gestor/hub.html" style="overflow:hidden">
+        <div class="cover grad art-1 ratio-16-9" style="border-radius:var(--r);margin:-20px -20px 18px"><div class="art-noise"></div><div class="veil"></div>
+          <div class="cap"><span class="badge">Interface 1</span></div></div>
+        <div class="row between">
+          <div><strong style="font-size:20px">Entrar como gestor</strong><p class="meta-sm" style="margin-top:4px">Hub, clientes, projetos, editar legendas e status, gerar links.</p></div>
+          <span id="a1"></span>
+        </div>
+      </a>
+
+      <a class="card hover pad reveal" href="cliente/index.html?c=yoko" style="overflow:hidden">
+        <div class="cover grad art-3 ratio-16-9" style="border-radius:var(--r);margin:-20px -20px 18px"><div class="art-noise"></div><div class="veil"></div>
+          <div class="cap"><span class="badge">Interface 2</span></div></div>
+        <div class="row between">
+          <div><strong style="font-size:20px">Entrar como cliente</strong><p class="meta-sm" style="margin-top:4px">Saudação por horário, projetos, aprovar e solicitar ajustes.</p></div>
+          <span id="a2"></span>
+        </div>
+      </a>
+    </div>
+
+    <p class="center dim" style="margin-top:24px;font-size:13px">Exemplos de link de cliente:
+      <a href="cliente/index.html?c=yoko" style="color:var(--text-2)">Yoko Tanizaki</a> ·
+      <a href="cliente/index.html?c=atlas" style="color:var(--text-2)">Atlas Café</a> ·
+      <a href="cliente/index.html?c=vértice" style="color:var(--text-2)">Vértice</a>
+    </p>
+  </section>
+
+  <section class="section" style="max-width:760px;margin:0 auto">
+    <div class="card pad">
+      <div class="eyebrow">Como funciona</div>
+      <p class="muted">Etapa 1 (esta): toda a estrutura e o design em HTML, com dados de exemplo. As ações (editar, aprovar, solicitar ajustes) já funcionam na tela, mas <strong>não são salvas</strong> — recarregar volta ao estado inicial. Na Etapa 2 conectamos o banco (Supabase) para salvar tudo de verdade e plugamos os vídeos/fotos/carrosséis por link embed do Drive.</p>
+    </div>
+  </section>
+</main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../assets/js/config.js"></script>
-<script src="../assets/js/data.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/data.js"></script>
 <script>
-const TOKEN=U.qs("c");
-let client;
-const mgr=Data.manager();
-document.getElementById("studio").textContent=mgr.studio;
-
-function projectCard(p){
-  const st=STATUS.project[p.status];
-  const pr=Data.projectProgress(p);
-  const clickable = p.status!=="breve";
-  const inner=`
-    <div class="cover grad ${p.posts[0]?p.posts[0].art:'art-6'} ratio-16-9" style="border-radius:var(--r-lg)">
-      <div class="art-noise"></div>
-      <div class="veil"></div>
-      <div class="type-chip">${U.icon(st.live?'clock':'star')} ${st.label}</div>
-      <div class="cap">
-        <strong style="font-size:19px;display:block">${p.name}</strong>
-        <span class="meta-sm" style="color:#cfd2da">${pr.total} conteúdos${p.status==='pronto'?` · ${pr.ok} aprovados`:''}</span>
-      </div>
-    </div>`;
-  if(clickable){
-    return `<a class="card hover reveal" style="overflow:hidden" href="projeto.html?c=${TOKEN}&p=${p.id}">${inner}</a>`;
-  }
-  return `<div class="card reveal" style="overflow:hidden;opacity:.6">${inner}</div>`;
-}
-
-function render(){
-  const first=client.name.split(" ")[0];
-  document.getElementById("who").textContent=client.handle;
-  const visible=client.projects;
-  document.getElementById("root").innerHTML=`
-    <section class="hello reveal">
-      <div class="wave">👋</div>
-      <h1 class="display" style="margin-top:10px">Oi, ${first}.<br><span style="color:var(--text-2);font-weight:400">${cap(U.greet())}!</span></h1>
-      <p class="lead" style="margin-top:14px">Qual projeto vamos visualizar hoje?</p>
-    </section>
-
-    ${client.message?`<section class="section reveal">
-      <div class="card pad" style="background:var(--surface-2);border-left:3px solid var(--red)">
-        <div class="row" style="gap:12px;align-items:flex-start">
-          <div class="avatar" style="background:var(--red);flex:none">${U.initials(mgr.name)}</div>
-          <div><div class="meta-sm" style="margin-bottom:4px">Recado de ${mgr.name}</div>
-          <p>${client.message}</p></div>
-        </div>
-      </div>
-    </section>`:''}
-
-    <section class="section">
-      <div class="eyebrow">Seus projetos</div>
-      <div class="grid c2 stagger">
-        ${visible.map(projectCard).join("")||'<div class="empty card pad">Nenhum projeto disponível ainda.</div>'}
-      </div>
-    </section>
-
-    <section class="section center reveal" style="padding-top:30px">
-      <p class="dim" style="font-size:13px">Área de aprovação · ${mgr.studio}</p>
-    </section>`;
-  U.reveal();
-}
-function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
-
-function start(){
-  client = Data.clientByToken(TOKEN);
-  if(!client){ document.getElementById("root").innerHTML='<section class="section center" style="padding-top:60px"><h1 class="display">Link inválido</h1><p class="lead" style="margin:14px auto">Esse link de visualização não foi encontrado. Peça um novo ao seu gestor.</p></section>'; return; }
-  render();
-}
-U.boot(start);
+document.getElementById("a1").innerHTML=U.icon("arrow");
+document.getElementById("a2").innerHTML=U.icon("arrow");
+U.reveal();
 </script>
 </body>
 </html>
