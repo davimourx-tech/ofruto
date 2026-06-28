@@ -35,11 +35,22 @@
       <div class="field grow"><label>Data de publicação</label>
         <input class="input" id="f-date" type="date"></div>
     </div>
-    <div class="field"><label>Link embed do Drive (vídeo/foto/carrossel)</label>
-      <input class="input" id="f-embed" placeholder="https://drive.google.com/file/d/.../preview">
-      <span class="hint">Etapa 2: cole aqui o link de pré-visualização do Drive. Vazio = usa a arte de exemplo.</span></div>
-    <div class="field"><label>Legenda do post</label>
-      <textarea class="textarea" id="f-caption" placeholder="Escreva a legenda que vai no Instagram..."></textarea></div>
+    <div id="grp-content">
+      <div class="field"><label>Link embed do Drive (vídeo/foto/carrossel)</label>
+        <input class="input" id="f-embed" placeholder="https://drive.google.com/file/d/.../preview">
+        <span class="hint">Cole o link de pré-visualização do Drive. Vazio = usa a arte de exemplo.</span></div>
+      <div class="field"><label>Legenda do post</label>
+        <textarea class="textarea" id="f-caption" placeholder="Escreva a legenda que vai no Instagram..."></textarea></div>
+    </div>
+    <div id="grp-plan" class="hidden">
+      <div class="field"><label>Briefing</label>
+        <textarea class="textarea" id="f-briefing" style="min-height:80px" placeholder="Objetivo da pauta, ideia central, gancho, CTA..."></textarea></div>
+      <div class="field"><label>Roteiro / descrição de cenas</label>
+        <textarea class="textarea" id="f-roteiro" placeholder="Se for vídeo, descreva as cenas; se for carrossel, o que vai em cada slide."></textarea></div>
+      <div class="field"><label>Referências</label>
+        <textarea class="textarea" id="f-refs" style="min-height:70px" placeholder="Um link por linha (Instagram, TikTok, Pinterest)"></textarea>
+        <span class="hint">O cliente vê como cards clicáveis com o ícone da plataforma.</span></div>
+    </div>
     <div class="field"><label>Observação para o cliente (opcional)</label>
       <textarea class="textarea" id="f-note" style="min-height:70px" placeholder="Se vazio, não aparece para o cliente."></textarea></div>
     <div class="field"><label>Status</label>
@@ -66,9 +77,18 @@ let client, project;
 document.getElementById("x1").innerHTML=U.icon("x");
 let EDITING=null;
 
+function isPlan(){ return project.kind==='planejamento'; }
+
 function postRow(post){
   const st=STATUS.post[post.status], t=TYPE[post.type];
+  const plan=isPlan();
   const hasReq = post.request? `<div class="note-box" style="margin-top:12px"><strong>Solicitação do cliente — ${post.request.scope}:</strong><br>${post.request.text}</div>`:'';
+  const hasPalpite = post.palpite? `<div class="note-box" style="margin-top:10px;background:var(--blue-soft);border-color:rgba(75,155,255,.3);color:#bcd9ff"><strong>${U.icon('chat')} Palpite do cliente:</strong><br>${post.palpite}</div>`:'';
+  const refsN = plan? U.refList(post.refs).length : 0;
+  const summaryText = plan ? (post.briefing||'Sem briefing') : (post.caption||'');
+  const metaLine = plan
+    ? `${t.label}${refsN?` · ${refsN} ref.`:''}${post.date?` · ${U.fmtDate(post.date)}`:''}`
+    : `${t.label} · publica ${U.fmtDate(post.date)}`;
   return `
   <div class="card pad hover">
     <div class="row between wrap" style="gap:16px">
@@ -76,38 +96,43 @@ function postRow(post){
         <div class="cover grad ${post.art} ${t.ratio}" style="width:64px;border-radius:14px;flex:none"><div class="art-noise"></div></div>
         <div class="col">
           <strong>${post.title}</strong>
-          <span class="meta-sm">${t.label} · publica ${U.fmtDate(post.date)}</span>
+          <span class="meta-sm">${metaLine}</span>
           <div style="margin-top:8px"><span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span></div>
         </div>
       </div>
-      <p class="muted grow" style="min-width:180px;max-width:420px;font-size:13.5px">${(post.caption||'').slice(0,120)}${(post.caption||'').length>120?'…':''}</p>
+      <p class="muted grow" style="min-width:180px;max-width:420px;font-size:13.5px">${summaryText.slice(0,120)}${summaryText.length>120?'…':''}</p>
       <button class="btn btn-sm card nowrap" onclick="edit('${post.id}')">${U.icon("edit")} Editar</button>
     </div>
-    ${hasReq}
+    ${hasReq}${hasPalpite}
   </div>`;
 }
 
 function render(){
   const st=STATUS.project[project.status];
   const pr=Data.projectProgress(project);
+  const plan=isPlan();
+  const unit=plan?'pautas':'posts';
   document.getElementById("root").innerHTML=`
     <section class="section">
       <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
       <div class="row between wrap" style="gap:16px;margin-top:12px">
         <div>
-          <div class="row" style="gap:10px;margin-bottom:10px">
+          <div class="row wrap" style="gap:10px;margin-bottom:10px">
             <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
+            ${plan?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
           </div>
           <h1 class="display" style="font-size:clamp(28px,5vw,46px)">${project.name}</h1>
-          <p class="muted" style="margin-top:8px">${pr.total} posts · ${pr.ok} aprovados · ${pr.pct}% concluído</p>
+          <p class="muted" style="margin-top:8px">${pr.total} ${unit} · ${pr.ok} aprovadas · ${pr.pct}% concluído</p>
         </div>
-        <div class="row" style="gap:10px">
+        <div class="row wrap" style="gap:10px">
+          ${plan?`<label class="meta-sm" style="display:flex;flex-direction:column;gap:4px">Prazo de aprovação
+            <input class="input" type="date" id="projDeadline" value="${project.deadline||''}" onchange="changeDeadline(this.value)" style="width:auto"></label>`:''}
           <select class="input select-bare" style="width:auto" id="projStatus" onchange="changeProjStatus(this.value)">
             <option value="breve"${project.status==='breve'?' selected':''}>Em breve</option>
             <option value="andamento"${project.status==='andamento'?' selected':''}>Em andamento</option>
             <option value="pronto"${project.status==='pronto'?' selected':''}>Pronto p/ visualizar</option>
           </select>
-          <button class="btn btn-primary" onclick="newPost()">${U.icon("plus")} Novo post</button>
+          <button class="btn btn-primary" onclick="newPost()">${U.icon("plus")} ${plan?'Nova pauta':'Novo post'}</button>
         </div>
       </div>
       <div class="bar" style="margin-top:18px"><i style="width:${pr.pct}%"></i></div>
@@ -122,34 +147,43 @@ function render(){
 }
 
 /* edit/create */
+function toggleGroups(){
+  const plan=isPlan();
+  document.getElementById("grp-content").classList.toggle("hidden", plan);
+  document.getElementById("grp-plan").classList.toggle("hidden", !plan);
+}
 function edit(id){
   EDITING=id; const p=Data.post(CID,PID,id);
-  document.getElementById("pm-title").textContent="Editar post";
+  document.getElementById("pm-title").textContent=isPlan()?"Editar pauta":"Editar post";
   document.getElementById("delBtn").style.display="";
-  fill(p); openModal("postModal");
+  toggleGroups(); fill(p); openModal("postModal");
 }
 function newPost(){
   EDITING=null;
-  document.getElementById("pm-title").textContent="Novo post";
+  document.getElementById("pm-title").textContent=isPlan()?"Nova pauta":"Novo post";
   document.getElementById("delBtn").style.display="none";
-  fill({title:"",type:"reel-9-16",date:"",embed:"",caption:"",note:"",status:"pendente"});
+  toggleGroups();
+  fill({title:"",type:"reel-9-16",date:"",embed:"",caption:"",note:"",status:"pendente",briefing:"",roteiro:"",refs:""});
   openModal("postModal");
 }
 function fill(p){
   f("title",p.title); f("type",p.type); f("date",p.date); f("embed",p.embed||"");
   f("caption",p.caption||""); f("note",p.note||""); f("status",p.status);
+  f("briefing",p.briefing||""); f("roteiro",p.roteiro||""); f("refs",p.refs||"");
 }
 function f(id,val){document.getElementById("f-"+id).value=val;}
 function g(id){return document.getElementById("f-"+id).value;}
 
 async function savePost(){
   const data={ title:g("title")||"Sem título", type:g("type"), date:g("date"),
-    embed:g("embed").trim(), caption:g("caption").trim(), note:g("note").trim(), status:g("status") };
+    embed:g("embed").trim(), caption:g("caption").trim(), note:g("note").trim(), status:g("status"),
+    briefing:g("briefing").trim(), roteiro:g("roteiro").trim(), refs:g("refs").trim() };
   const wasEditing=!!EDITING;
   await Store.savePost(CID,PID,data,EDITING);
-  U.toast(wasEditing?"Post atualizado":"Post criado");
+  U.toast(wasEditing?"Salvo":"Criado");
   closeModals(); render();
 }
+async function changeDeadline(v){ await Store.setProjectDeadline(CID,PID,v); U.toast("Prazo atualizado"); }
 async function deletePost(){
   if(!EDITING) return;
   if(!confirm("Excluir este post?")) return;
@@ -164,10 +198,11 @@ function closeModals(e){if(e&&e.target.closest(".modal"))return;
   document.getElementById("scrim").classList.remove("open");}
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModals();});
 
-function start(){
+async function start(){
   client=Data.client(CID); project=Data.project(CID,PID);
   document.getElementById("crumbs").innerHTML=`<a href="cliente.html?c=${CID}">← ${client?client.name:'Cliente'}</a>`;
   if(!project){document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Projeto não encontrado. <a href="hub.html">Voltar</a></div>';return;}
+  await Store.applyDeadline(project);
   render();
 }
 U.boot(start, {manager:true});

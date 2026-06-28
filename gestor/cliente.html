@@ -26,6 +26,14 @@
   <div class="body">
     <div class="field"><label>Nome do projeto</label>
       <input class="input" id="f-pname" placeholder="Ex.: Conteúdos de Agosto"></div>
+    <div class="field"><label>Tipo de projeto</label>
+      <select class="input" id="f-pkind" onchange="kindChanged()">
+        <option value="conteudo">Conteúdo — aprovar posts prontos</option>
+        <option value="planejamento">Planejamento — pautas e ideias</option>
+      </select></div>
+    <div class="field hidden" id="deadlineWrap"><label>Prazo de aprovação</label>
+      <input class="input" id="f-pdeadline" type="date">
+      <span class="hint">O cliente vê a contagem regressiva. Sem resposta até o prazo, as pautas pendentes são aprovadas automaticamente.</span></div>
     <div class="field"><label>Status inicial</label>
       <select class="input" id="f-pstatus">
         <option value="breve">Em breve disponível</option>
@@ -118,8 +126,9 @@ function projectCard(p){
       <a class="row grow" style="gap:14px;min-width:220px" href="projeto.html?c=${CID}&p=${p.id}">
         <div class="proj-thumb ${cv.cls}" style="${cv.style}"><div class="art-noise"></div></div>
         <div class="col">
-          <div class="row" style="gap:10px;margin-bottom:6px">
+          <div class="row wrap" style="gap:8px;margin-bottom:6px">
             <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
+            ${p.kind==='planejamento'?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
           </div>
           <strong style="font-size:18px">${p.name}</strong>
           <div class="meta-sm" style="margin-top:4px">${pr.total} posts · ${pr.ok} aprovados</div>
@@ -183,7 +192,11 @@ function kpi(k,v,ic,c){return `<div class="card pad"><div class="row between"><s
 
 /* actions */
 let NP_COVER='art-1';
+function kindChanged(){ const k=document.getElementById("f-pkind").value;
+  document.getElementById("deadlineWrap").classList.toggle("hidden", k!=="planejamento"); }
 function openProj(){ NP_COVER='art-1'; document.getElementById("np-coverurl").value="";
+  document.getElementById("f-pkind").value="conteudo"; document.getElementById("f-pdeadline").value="";
+  document.getElementById("deadlineWrap").classList.add("hidden");
   buildSwatches('np-swatches','art-1','npPick'); setPreview('np-preview','art-1'); openModal("projModal"); }
 function npPick(a){ NP_COVER=a; document.getElementById('np-coverurl').value=''; buildSwatches('np-swatches',a,'npPick'); setPreview('np-preview',a); }
 function npUrl(v){ v=v.trim(); NP_COVER=v||'art-1'; buildSwatches('np-swatches', v?'':NP_COVER, 'npPick'); setPreview('np-preview',NP_COVER); }
@@ -197,7 +210,9 @@ async function addProject(){
   await Store.addProject(CID, { name,
     status:document.getElementById("f-pstatus").value,
     intro:document.getElementById("f-pintro").value.trim(),
-    cover:NP_COVER });
+    cover:NP_COVER,
+    kind:document.getElementById("f-pkind").value,
+    deadline:document.getElementById("f-pdeadline").value });
   document.getElementById("f-pname").value=""; document.getElementById("f-pintro").value="";
   closeModals(); U.toast("Projeto criado"); render();
 }

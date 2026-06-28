@@ -96,8 +96,9 @@ function actionArea(){
 }
 
 function render(){
-  const st=STATUS.post[post.status], t=TYPE[post.type];
   document.getElementById("who").textContent=project.name;
+  if(project.kind==='planejamento'){ renderPlan(); return; }
+  const st=STATUS.post[post.status], t=TYPE[post.type];
   document.getElementById("root").innerHTML=`
     <section class="section">
       <a class="meta-sm" href="projeto.html?c=${TOKEN}&p=${PID}">← ${project.name}</a>
@@ -138,6 +139,104 @@ function render(){
   U.reveal();
 }
 
+/* ---------- PLANEJAMENTO (pautas) ---------- */
+function refCards(){
+  const list=U.refList(post.refs);
+  if(!list.length) return '<span class="dim">Sem referências.</span>';
+  return `<div class="col" style="gap:10px">`+list.map(r=>`
+    <a class="card pad row between hover" href="${r.url}" target="_blank" rel="noopener" style="text-decoration:none">
+      <div class="row" style="gap:12px;min-width:0">
+        <span class="avatar" style="width:42px;height:42px;border-radius:12px;background:var(--surface-3)">${U.icon(r.plat)}</span>
+        <div class="col" style="min-width:0">
+          <strong style="font-size:14px">${r.label}</strong>
+          <span class="meta-sm" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46vw">${r.url}</span>
+        </div>
+      </div>${U.icon('arrow')}
+    </a>`).join('')+`</div>`;
+}
+
+function planActions(){
+  const st=post.status;
+  let head='';
+  if(st==='aprovado'){
+    head=`<div class="card pad center" style="background:var(--green-soft);border-color:var(--green)">
+      <div style="color:var(--green);margin-bottom:6px">${U.icon('check')}</div><strong>Pauta aprovada</strong>
+      <p class="meta-sm" style="margin-top:4px">Pode produzir. 🚀</p>
+      <button class="btn btn-sm card" style="margin-top:12px" onclick="setStatus('pendente')">Reabrir</button></div>`;
+  } else if(st==='ajustes'||st==='reprovado'){ const r=post.request;
+    head=`<div class="card pad"><span class="badge ${STATUS.post[st].cls}"><span class="pip"></span>${STATUS.post[st].label}</span>
+      ${r?`<div class="note-box" style="margin-top:14px"><strong>Você pediu — ${r.scope}:</strong><br>${r.text}</div>`:''}
+      <p class="meta-sm" style="margin-top:12px">O gestor foi avisado.</p>
+      <div class="row" style="gap:10px;margin-top:14px">
+        <button class="btn btn-primary grow" onclick="openAdjust()">Editar pedido</button>
+        <button class="btn card" onclick="setStatus('aprovado')">Aprovar mesmo assim</button></div></div>`;
+  } else {
+    head=`<div class="card pad"><strong>O que achou desta pauta?</strong>
+      <div class="seg" style="margin-top:14px">
+        <button class="ok" onclick="setStatus('aprovado')">${U.icon('check')} Aprovar</button>
+        <button class="adj" onclick="openAdjust()">${U.icon('edit')} Solicitar ajustes</button>
+      </div></div>`;
+  }
+  const palpite=`<div class="card pad">
+    <div class="eyebrow" style="margin-bottom:10px">Deixar um palpite</div>
+    <p class="meta-sm" style="margin-bottom:10px">Uma ideia, sugestão ou opinião — não trava a aprovação.</p>
+    <textarea class="textarea" id="f-palpite" style="min-height:70px" placeholder="Ex.: e se começasse com uma pergunta forte?">${post.palpite||''}</textarea>
+    <button class="btn card btn-block" style="margin-top:10px" onclick="sendPalpite()">${post.palpite?'Atualizar palpite':'Enviar palpite'}</button>
+  </div>`;
+  return head+'<div style="height:14px"></div>'+palpite;
+}
+
+function renderPlan(){
+  const st=STATUS.post[post.status], t=TYPE[post.type];
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <a class="meta-sm" href="projeto.html?c=${TOKEN}&p=${PID}">← ${project.name}</a>
+    </section>
+    <div class="col reveal" style="max-width:760px;margin:0 auto;gap:18px">
+      <div>
+        <div class="row wrap" style="gap:10px;margin-bottom:10px">
+          <span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>
+          <span class="badge">${U.icon('idea')} Pauta</span>
+          <span class="badge">${U.icon(t.icon)} ${t.label}</span>
+        </div>
+        <h1 class="display" style="font-size:clamp(24px,4vw,34px)">${post.title}</h1>
+      </div>
+
+      ${post.note?`<div class="note-box">${U.icon('message')} <strong>Observação do gestor:</strong><br>${post.note}</div>`:''}
+
+      <div class="card pad">
+        <div class="eyebrow" style="margin-bottom:10px">Briefing</div>
+        <div class="caption-box">${post.briefing||'<span class="dim">Sem briefing.</span>'}</div>
+      </div>
+
+      ${post.roteiro?`<div class="card pad">
+        <div class="eyebrow" style="margin-bottom:10px">Roteiro / cenas</div>
+        <div class="caption-box">${post.roteiro}</div>
+      </div>`:''}
+
+      <div class="card pad">
+        <div class="eyebrow" style="margin-bottom:12px">Referências</div>
+        ${refCards()}
+      </div>
+
+      <div class="card pad">
+        ${post.date?`<div class="kv"><span class="k">${U.icon('clock')} Publicação prevista</span><strong>${U.fmtDate(post.date)}</strong></div>`:''}
+        <div class="kv"><span class="k">${U.icon('grid')} Formato</span><strong>${t.label}</strong></div>
+        <div class="kv"><span class="k">${U.icon('eye')} Status</span><span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span></div>
+      </div>
+
+      <div id="actions">${planActions()}</div>
+    </div>
+    <div style="height:30px"></div>`;
+  U.reveal();
+}
+async function sendPalpite(){
+  const t=document.getElementById('f-palpite').value.trim();
+  await Store.setPalpite(CID,PID,POID,t);
+  U.toast(t?'Palpite enviado 💡':'Palpite removido');
+  render();
+}
+
 /* status changes (gravam no banco quando configurado) */
 async function setStatus(s,confirmFirst){
   if(confirmFirst && !confirm("Reprovar este conteúdo?")) return;
@@ -150,7 +249,11 @@ async function setStatus(s,confirmFirst){
 function openAdjust(){
   const t=post.type;
   let guide, scopeLabel, scopePh;
-  if(isVideo(t)){
+  if(project.kind==='planejamento'){
+    guide="💡 Conte o que mudar na ideia: pode ser o briefing, o roteiro/cenas, o formato ou as referências.";
+    scopeLabel="O que ajustar?";
+    scopePh="Ex.: roteiro · gancho inicial · formato · referências";
+  } else if(isVideo(t)){
     guide="💡 Para vídeos: informe o segundo (ou intervalo) que deseja alterar — ex.: “00:08 a 00:12” — ou escreva “vídeo todo” se for geral.";
     scopeLabel="Trecho do vídeo (segundo/intervalo)";
     scopePh="Ex.: 00:08 a 00:12  ·  ou: vídeo todo";

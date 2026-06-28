@@ -47,31 +47,53 @@ function snap(post){
       <div class="cap">
         <span class="badge ${st.cls}" style="margin-bottom:8px"><span class="pip"></span>${st.label}</span>
         <strong style="display:block;font-size:15px;line-height:1.25">${post.title}</strong>
-        <span class="meta-sm" style="color:#cfd2da">Publica ${U.fmtDate(post.date)}</span>
+        <span class="meta-sm" style="color:#cfd2da">${post.date?'Publica '+U.fmtDate(post.date):'Pauta de conteúdo'}</span>
       </div>
     </div>
   </a>`;
 }
 
+function deadlineBanner(){
+  if(project.kind!=='planejamento' || !project.deadline) return '';
+  const d=U.daysLeft(project.deadline), dateStr=U.fmtDate(project.deadline);
+  if(d>=0){
+    return `<div class="card pad reveal" style="background:var(--amber-soft);border-color:rgba(255,176,32,.3)">
+      <div class="row" style="gap:12px;align-items:flex-start">
+        <span style="color:var(--amber)">${U.icon('clock')}</span>
+        <div><strong style="color:#ffd98a">Prazo de aprovação até ${dateStr}</strong>
+        <div class="meta-sm" style="margin-top:3px;color:#ffe7b3">${d===0?'Último dia!':'Faltam '+d+' dia'+(d>1?'s':'')+'.'} Sem resposta até lá, seguimos com o que está planejado.</div></div>
+      </div></div>`;
+  }
+  return `<div class="card pad reveal" style="background:var(--green-soft);border-color:rgba(40,208,123,.3)">
+      <div class="row" style="gap:12px;align-items:flex-start">
+        <span style="color:var(--green)">${U.icon('check')}</span>
+        <div><strong style="color:#7ef0b6">Prazo encerrado (${dateStr})</strong>
+        <div class="meta-sm" style="margin-top:3px;color:#a9f0cd">As pautas pendentes foram aprovadas automaticamente. Seguimos com o planejado.</div></div>
+      </div></div>`;
+}
+
 function render(){
   const st=STATUS.project[project.status];
+  const plan=project.kind==='planejamento';
   document.getElementById("who").textContent=project.name;
   document.getElementById("root").innerHTML=`
     <div class="wrap">
       <section class="hello reveal">
         <a class="meta-sm" href="index.html?c=${TOKEN}">← Meus projetos</a>
-        <div class="row" style="gap:10px;margin:14px 0 6px">
+        <div class="row wrap" style="gap:10px;margin:14px 0 6px">
           <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
+          ${plan?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
         </div>
         <h1 class="display" style="font-size:clamp(28px,6vw,46px)">${project.name}</h1>
-        <p class="lead" style="margin-top:14px">${project.intro||'Esses são os conteúdos para aprovação, visualização e acompanhamento. Toque em cada um para ver tudo.'}</p>
+        <p class="lead" style="margin-top:14px">${project.intro||(plan?'Esse é o nosso planejamento de conteúdos. Veja cada pauta, aprove, peça ajustes ou deixe um palpite.':'Esses são os conteúdos para aprovação, visualização e acompanhamento. Toque em cada um para ver tudo.')}</p>
+        ${plan?`<div style="margin-top:18px">${deadlineBanner()}</div>`:''}
       </section>
     </div>
 
     <section class="section">
       <div class="wrap">
         <div class="row between" style="margin-bottom:4px">
-          <div class="eyebrow" style="margin:0">Deslize para o lado →</div>
+          <div class="eyebrow" style="margin:0">${plan?'As pautas →':'Deslize para o lado →'}</div>
           ${project.posts.length?`<a class="btn btn-sm" href="calendario.html?c=${TOKEN}&p=${PID}">${U.icon('calendar')} Ver tudo</a>`:''}
         </div>
       </div>
@@ -108,10 +130,11 @@ function updateSeen(){
   document.getElementById("cta").classList.toggle("tuck", !(total>0 && n>=total));
 }
 
-function start(){
+async function start(){
   client = Data.clientByToken(TOKEN);
   project = client ? Data.project(client.id, PID) : null;
   if(!project){ document.getElementById("root").innerHTML='<div class="wrap empty" style="padding-top:60px">Projeto não encontrado. <a href="index.html?c='+TOKEN+'">Voltar</a></div>'; return; }
+  await Store.applyDeadline(project);
   render();
 }
 U.boot(start);

@@ -277,7 +277,11 @@ const U = {
       sparkle:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/>',
       clapper:'<path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z"/><path d="m6.2 5.3 3.1 3.9"/><path d="m12.4 3.4 3.1 4"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
       calendar:'<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/>',
-      upload:'<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>'
+      upload:'<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>',
+      instagram:'<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/>',
+      tiktok:'<path d="M12 4v12.6a3 3 0 1 1-2.2-2.9"/><path d="M12 4c.4 2.6 2.3 4.2 4.6 4.4"/>',
+      pinterest:'<circle cx="12" cy="12" r="9"/><path d="M11.2 16.4 12.4 11M10.6 11.2a2 2 0 1 1 3.2 1.7c-1 .8-2.4.5-2.8-.7"/>',
+      idea:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2h5c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/>'
     };
     return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p[name]||""}</svg>`;
   }
@@ -294,7 +298,8 @@ const PALETTE = ["art-1","art-2","art-3","art-4","art-5","art-6"];
 
 function postFromDb(x){
   const o={ id:x.id, title:x.title, type:x.type, art:x.art||'art-1', embed:x.embed||'',
-            caption:x.caption||'', note:x.note||'', status:x.status||'pendente', date:x.pub_date||'' };
+            caption:x.caption||'', note:x.note||'', status:x.status||'pendente', date:x.pub_date||'',
+            briefing:x.briefing||'', roteiro:x.roteiro||'', refs:x.refs||'', palpite:x.palpite||'' };
   if(x.slides) o.slides=x.slides;
   if(x.request_text) o.request={ scope:x.request_scope||'', text:x.request_text };
   return o;
@@ -303,6 +308,7 @@ function postToDb(p, projectId){
   return { id:p.id, project_id:projectId, title:p.title||'', type:p.type, art:p.art||'art-1',
            embed:p.embed||'', caption:p.caption||'', note:p.note||'', status:p.status||'pendente',
            pub_date:p.date||null, slides:p.slides||0,
+           briefing:p.briefing||'', roteiro:p.roteiro||'', refs:p.refs||'', palpite:p.palpite||'',
            request_scope:p.request?p.request.scope:'', request_text:p.request?p.request.text:'' };
 }
 
@@ -333,6 +339,7 @@ const Store = {
         archived:!!c.archived, message:c.message||'',
         projects: projects.filter(p=>p.client_id===c.id).map(p=>({
           id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'', cover:p.cover||'',
+          kind:p.kind||'conteudo', deadline:p.deadline||'',
           posts: posts.filter(x=>x.project_id===p.id).map(postFromDb)
         }))
       }));
@@ -359,14 +366,30 @@ const Store = {
   async setClientMessage(id,msg){ Data.client(id).message=msg;
     if(this.sb) await this.sb.from('clients').update({message:msg}).eq('id',id); },
 
-  async addProject(cid,{name,status,intro,cover}){
-    const p={ id:genId(), name, status:status||'breve', intro:intro||'', cover:cover||'art-1', posts:[] };
+  async addProject(cid,{name,status,intro,cover,kind,deadline}){
+    const p={ id:genId(), name, status:status||'breve', intro:intro||'', cover:cover||'art-1',
+              kind:kind||'conteudo', deadline:deadline||'', posts:[] };
     Data.client(cid).projects.push(p);
-    if(this.sb) await this.sb.from('projects').insert({ id:p.id, client_id:cid, name:p.name, status:p.status, intro:p.intro, cover:p.cover, sort:0 });
+    if(this.sb) await this.sb.from('projects').insert({ id:p.id, client_id:cid, name:p.name, status:p.status,
+      intro:p.intro, cover:p.cover, kind:p.kind, deadline:p.deadline||null, sort:0 });
     return p;
   },
   async setProjectStatus(cid,pid,status){ Data.project(cid,pid).status=status;
     if(this.sb) await this.sb.from('projects').update({status}).eq('id',pid); },
+  async setProjectDeadline(cid,pid,deadline){ Data.project(cid,pid).deadline=deadline;
+    if(this.sb) await this.sb.from('projects').update({deadline:deadline||null}).eq('id',pid); },
+  async setPalpite(cid,pid,postId,text){ Data.post(cid,pid,postId).palpite=text;
+    if(this.sb) await this.sb.from('posts').update({palpite:text}).eq('id',postId); },
+  /* auto-aprovação: ao vencer o prazo, pautas 'pendente' viram 'aprovado' */
+  async applyDeadline(project){
+    if(!project || project.kind!=='planejamento' || !project.deadline) return false;
+    const end=new Date(project.deadline+'T23:59:59');
+    if(new Date() <= end) return false;
+    let changed=false;
+    for(const p of project.posts){ if(p.status==='pendente'){ p.status='aprovado'; changed=true;
+      if(this.sb) await this.sb.from('posts').update({status:'aprovado'}).eq('id',p.id); } }
+    return changed;
+  },
   async setProjectCover(cid,pid,cover){ Data.project(cid,pid).cover=cover;
     if(this.sb) await this.sb.from('projects').update({cover}).eq('id',pid); },
 
@@ -431,6 +454,29 @@ const Auth = {
     });
   },
   logout(){ sessionStorage.removeItem('selo_mgr'); location.href='../index.html'; }
+};
+
+/* referências de planejamento: detecta plataforma e lista links */
+U.platform = function(url){
+  const u=(url||'').toLowerCase();
+  if(/instagram\.com/.test(u)) return 'instagram';
+  if(/tiktok\.com/.test(u))    return 'tiktok';
+  if(/pinterest\.|pin\.it/.test(u)) return 'pinterest';
+  if(/youtu/.test(u))          return 'film';
+  return 'link';
+};
+U.platformLabel = function(p){ return {instagram:'Instagram',tiktok:'TikTok',pinterest:'Pinterest',film:'YouTube',link:'Link'}[p]||'Link'; };
+U.refList = function(text){
+  return (text||'').split('\n').map(s=>s.trim()).filter(Boolean).map(url=>{
+    let host=url; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){}
+    const plat=U.platform(url);
+    return { url, plat, host, label:U.platformLabel(plat) };
+  });
+};
+/* dias restantes até uma data (YYYY-MM-DD) */
+U.daysLeft = function(iso){ if(!iso) return null;
+  const end=new Date(iso+'T23:59:59'), now=new Date();
+  return Math.ceil((end-now)/(1000*60*60*24));
 };
 
 /* capa de projeto: art-X (preset) ou URL de imagem */
