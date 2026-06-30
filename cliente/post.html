@@ -311,12 +311,13 @@ function closeModals(e){if(e&&e.target.closest(".modal"))return;
   document.getElementById("scrim").classList.remove("open");}
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModals();});
 
-function start(){
+async function start(){
   client=Data.clientByToken(TOKEN); CID=client?client.id:null;
   project=client?Data.project(CID,PID):null;
   post=project?Data.post(CID,PID,POID):null;
   if(client) document.getElementById("backLink").href='projeto.html?c='+TOKEN+'&p='+PID;
   if(!post){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Conteúdo não encontrado.</div>'; return; }
+  await Store.applyDeadline(project);
   render();
 }
 U.boot(start);

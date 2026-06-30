@@ -31,9 +31,9 @@
         <option value="conteudo">Conteúdo — aprovar posts prontos</option>
         <option value="planejamento">Planejamento — pautas e ideias</option>
       </select></div>
-    <div class="field hidden" id="deadlineWrap"><label>Prazo de aprovação</label>
+    <div class="field" id="deadlineWrap"><label>Prazo de aprovação (opcional)</label>
       <input class="input" id="f-pdeadline" type="date">
-      <span class="hint">O cliente vê a contagem regressiva. Sem resposta até o prazo, as pautas pendentes são aprovadas automaticamente.</span></div>
+      <span class="hint">O cliente vê a contagem regressiva. Sem resposta até o prazo, os itens pendentes são aprovados automaticamente. Vale para conteúdo e planejamento.</span></div>
     <div class="field"><label>Status inicial</label>
       <select class="input" id="f-pstatus">
         <option value="breve">Em breve disponível</option>
@@ -192,11 +192,9 @@ function kpi(k,v,ic,c){return `<div class="card pad"><div class="row between"><s
 
 /* actions */
 let NP_COVER='art-1';
-function kindChanged(){ const k=document.getElementById("f-pkind").value;
-  document.getElementById("deadlineWrap").classList.toggle("hidden", k!=="planejamento"); }
+function kindChanged(){ /* prazo agora vale para os dois tipos */ }
 function openProj(){ NP_COVER='art-1'; document.getElementById("np-coverurl").value="";
   document.getElementById("f-pkind").value="conteudo"; document.getElementById("f-pdeadline").value="";
-  document.getElementById("deadlineWrap").classList.add("hidden");
   buildSwatches('np-swatches','art-1','npPick'); setPreview('np-preview','art-1'); openModal("projModal"); }
 function npPick(a){ NP_COVER=a; document.getElementById('np-coverurl').value=''; buildSwatches('np-swatches',a,'npPick'); setPreview('np-preview',a); }
 function npUrl(v){ v=v.trim(); NP_COVER=v||'art-1'; buildSwatches('np-swatches', v?'':NP_COVER, 'npPick'); setPreview('np-preview',NP_COVER); }

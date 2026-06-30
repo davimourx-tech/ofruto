@@ -149,8 +149,8 @@ function render(){
           <p class="muted" style="margin-top:8px">${pr.total} ${unit} · ${pr.ok} aprovadas · ${pr.pct}% concluído · <a class="meta-sm" style="text-decoration:underline;cursor:pointer" onclick="editIntro()">editar mensagem de abertura</a></p>
         </div>
         <div class="row wrap" style="gap:10px">
-          ${plan?`<label class="meta-sm" style="display:flex;flex-direction:column;gap:4px">Prazo de aprovação
-            <input class="input" type="date" id="projDeadline" value="${project.deadline||''}" onchange="changeDeadline(this.value)" style="width:auto"></label>`:''}
+          <label class="meta-sm" style="display:flex;flex-direction:column;gap:4px">Prazo de aprovação
+            <input class="input" type="date" id="projDeadline" value="${project.deadline||''}" onchange="changeDeadline(this.value)" style="width:auto"></label>
           <select class="input select-bare" style="width:auto" id="projStatus" onchange="changeProjStatus(this.value)">
             <option value="breve"${project.status==='breve'?' selected':''}>Em breve</option>
             <option value="andamento"${project.status==='andamento'?' selected':''}>Em andamento</option>

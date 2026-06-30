@@ -384,9 +384,9 @@ const Store = {
     if(this.sb) await this.sb.from('projects').update({deadline:deadline||null}).eq('id',pid); },
   async setPalpite(cid,pid,postId,text){ Data.post(cid,pid,postId).palpite=text;
     if(this.sb) await this.sb.from('posts').update({palpite:text}).eq('id',postId); },
-  /* auto-aprovação: ao vencer o prazo, pautas 'pendente' viram 'aprovado' */
+  /* auto-aprovação: ao vencer o prazo, itens 'pendente' viram 'aprovado' */
   async applyDeadline(project){
-    if(!project || project.kind!=='planejamento' || !project.deadline) return false;
+    if(!project || !project.deadline) return false;
     const end=new Date(project.deadline+'T23:59:59');
     if(new Date() <= end) return false;
     let changed=false;

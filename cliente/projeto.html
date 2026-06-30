@@ -81,7 +81,8 @@ function buildView(){
 }
 
 function deadlineBanner(){
-  if(project.kind!=='planejamento' || !project.deadline) return '';
+  if(!project.deadline) return '';
+  const noun = project.kind==='planejamento' ? 'as pautas pendentes' : 'os conteúdos pendentes';
   const d=U.daysLeft(project.deadline), dateStr=U.fmtDate(project.deadline);
   if(d>=0){
     return `<div class="card pad reveal" style="background:var(--amber-soft);border-color:rgba(255,176,32,.3)">
@@ -95,7 +96,7 @@ function deadlineBanner(){
       <div class="row" style="gap:12px;align-items:flex-start">
         <span style="color:var(--green)">${U.icon('check')}</span>
         <div><strong style="color:#7ef0b6">Prazo encerrado (${dateStr})</strong>
-        <div class="meta-sm" style="margin-top:3px;color:#a9f0cd">As pautas pendentes foram aprovadas automaticamente. Seguimos com o planejado.</div></div>
+        <div class="meta-sm" style="margin-top:3px;color:#a9f0cd">Como não houve resposta, ${noun} foram aprovados automaticamente.</div></div>
       </div></div>`;
 }
 
@@ -113,7 +114,7 @@ function render(){
         </div>
         <h1 class="display" style="font-size:clamp(28px,6vw,46px)">${project.name}</h1>
         <p class="lead" style="margin-top:14px">${project.intro||(plan?'Esse é o nosso planejamento de conteúdos. Veja cada pauta, aprove, peça ajustes ou deixe um palpite.':'Esses são os conteúdos para aprovação, visualização e acompanhamento. Toque em cada um para ver tudo.')}</p>
-        ${plan?`<div style="margin-top:18px">${deadlineBanner()}</div>`:''}
+        ${project.deadline?`<div style="margin-top:18px">${deadlineBanner()}</div>`:''}
       </section>
     </div>
 
