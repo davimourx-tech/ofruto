@@ -142,8 +142,11 @@ function render(){
             <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
             ${plan?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
           </div>
-          <h1 class="display" style="font-size:clamp(28px,5vw,46px)">${project.name}</h1>
-          <p class="muted" style="margin-top:8px">${pr.total} ${unit} · ${pr.ok} aprovadas · ${pr.pct}% concluído</p>
+          <div class="row" style="gap:10px;align-items:center">
+            <h1 class="display" style="font-size:clamp(28px,5vw,46px)">${project.name}</h1>
+            <button class="btn-icon card" title="Renomear projeto" onclick="renameProject()">${U.icon('edit')}</button>
+          </div>
+          <p class="muted" style="margin-top:8px">${pr.total} ${unit} · ${pr.ok} aprovadas · ${pr.pct}% concluído · <a class="meta-sm" style="text-decoration:underline;cursor:pointer" onclick="editIntro()">editar mensagem de abertura</a></p>
         </div>
         <div class="row wrap" style="gap:10px">
           ${plan?`<label class="meta-sm" style="display:flex;flex-direction:column;gap:4px">Prazo de aprovação
@@ -206,6 +209,17 @@ async function savePost(){
   closeModals(); render();
 }
 async function changeDeadline(v){ await Store.setProjectDeadline(CID,PID,v); U.toast("Prazo atualizado"); }
+async function renameProject(){
+  const n=prompt("Novo nome do projeto:", project.name);
+  if(n===null) return;
+  const name=n.trim(); if(!name){ U.toast("Nome não pode ficar vazio"); return; }
+  await Store.setProjectName(CID,PID,name); U.toast("Projeto renomeado"); render();
+}
+async function editIntro(){
+  const n=prompt("Mensagem de abertura (o cliente vê no topo do projeto):", project.intro||"");
+  if(n===null) return;
+  await Store.setProjectIntro(CID,PID,n.trim()); U.toast("Mensagem atualizada"); render();
+}
 async function deletePost(){
   if(!EDITING) return;
   if(!confirm("Excluir este post?")) return;

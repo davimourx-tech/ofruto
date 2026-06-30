@@ -376,6 +376,10 @@ const Store = {
   },
   async setProjectStatus(cid,pid,status){ Data.project(cid,pid).status=status;
     if(this.sb) await this.sb.from('projects').update({status}).eq('id',pid); },
+  async setProjectName(cid,pid,name){ Data.project(cid,pid).name=name;
+    if(this.sb) await this.sb.from('projects').update({name}).eq('id',pid); },
+  async setProjectIntro(cid,pid,intro){ Data.project(cid,pid).intro=intro;
+    if(this.sb) await this.sb.from('projects').update({intro}).eq('id',pid); },
   async setProjectDeadline(cid,pid,deadline){ Data.project(cid,pid).deadline=deadline;
     if(this.sb) await this.sb.from('projects').update({deadline:deadline||null}).eq('id',pid); },
   async setPalpite(cid,pid,postId,text){ Data.post(cid,pid,postId).palpite=text;
