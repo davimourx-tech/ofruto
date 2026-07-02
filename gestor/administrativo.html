@@ -29,7 +29,7 @@ function row(c){
   const stageOpts=`<option value="">— etapa da jornada —</option>`+JORNADA.map(s=>`<option ${c.stage===s?'selected':''}>${s}</option>`).join('');
   return `<div class="card pad">
     <div class="row between wrap" style="gap:14px">
-      <a class="row grow" style="gap:14px;min-width:220px" href="cliente.html?c=${c.id}">
+      <a class="row grow" style="gap:14px;min-width:220px" href="dados.html?c=${c.id}">
         ${U.avatarHtml(c,'lg')}
         <div class="col">
           <strong style="font-size:16px">${c.name}</strong>

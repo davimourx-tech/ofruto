@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Relatório</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" id="backLink"><span class="dot"></span> <span id="studio">oFruto</span></a>
+    <span class="topnav"><span class="badge" id="who"></span></span>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const TOKEN=U.qs("c"), MONTH=U.qs("m");
+let client;
+const mgr=Data.manager();
+document.getElementById("studio").textContent=mgr.studio;
+const LABELS={seguidores_total:'Seguidores',seguidores_ganhos:'Seguidores ganhos',alcance:'Alcance',views:'Visualizações',interacoes:'Interações',salvamentos:'Salvamentos',compartilhamentos:'Compartilhamentos',visitas_perfil:'Visitas ao perfil',posts_publicados:'Posts publicados'};
+const MES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+function mesLabel(m){ if(!m) return ''; const [y,mm]=m.split('-'); return MES[Number(mm)-1]+' '+y; }
+function fmtNum(n){ return Number(n).toLocaleString('pt-BR'); }
+
+function render(r){
+  document.getElementById("who").textContent=mesLabel(r.month);
+  document.getElementById("backLink").href="index.html?c="+TOKEN;
+  const metrics=Object.entries(r.metrics||{}).filter(([k,v])=>v!=='' && v!=null);
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <a class="meta-sm" href="index.html?c=${TOKEN}">← Meus projetos</a>
+      <div class="eyebrow" style="margin:16px 0 0">Relatório do mês</div>
+      <h1 class="display" style="font-size:clamp(28px,6vw,46px);text-transform:capitalize">${mesLabel(r.month)}</h1>
+    </section>
+
+    ${metrics.length?`<section class="section">
+      <div class="grid c3 stagger">
+        ${metrics.map(([k,v])=>`<div class="card pad"><span class="meta-sm">${LABELS[k]||k}</span>
+          <div style="font-family:var(--serif);font-weight:700;font-size:30px;letter-spacing:-.02em;margin-top:4px">${fmtNum(v)}</div></div>`).join('')}
+      </div>
+    </section>`:''}
+
+    ${r.analysis?`<section class="section" style="max-width:760px">
+      <div class="card pad">
+        <div class="eyebrow" style="margin-bottom:12px">Análise do mês</div>
+        <div class="caption-box">${r.analysis.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')}</div>
+      </div>
+    </section>`:''}
+
+    <section class="section center reveal" style="padding-top:20px"><p class="dim" style="font-size:13px">${mgr.studio}</p></section>`;
+  U.reveal();
+}
+
+function start(){
+  client=Data.clientByToken(TOKEN);
+  if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Link inválido.</div>'; return; }
+  const r=(client.reports||[]).find(x=>x.month===MONTH && x.published);
+  if(!r){ document.getElementById("root").innerHTML='<div class="wrap empty" style="padding-top:60px">Relatório não disponível. <a href="index.html?c='+TOKEN+'">Voltar</a></div>'; return; }
+  render(r);
+}
+U.boot(start);
+</script>
+</body>
+</html>

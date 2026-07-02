@@ -27,14 +27,31 @@ window.APP_CONFIG = {
 
   /* Checklist de onboarding criado automaticamente para cada cliente novo.
      Edite esta lista com o SEU processo. Você também pode ajustar por cliente depois. */
-  /* Etapas de PRODUÇÃO dos conteúdos (Operacional). Edite com as suas. */
-  PROD_STAGES: ["Ideia", "Roteiro", "Captação", "Edição", "Design", "Revisão", "Pronto"],
+  /* Etapas de PRODUÇÃO dos conteúdos (Operacional) — pipeline oFruto */
+  PROD_STAGES: [
+    "Ideia e Briefing",
+    "Desenvolver Copy/Roteiro",
+    "Validação do Planejamento",
+    "Captação",
+    "Edição dos Vídeos",
+    "Design de Artes e Carrosséis",
+    "Validação dos Conteúdos",
+    "Revisão e Ajustes",
+    "Gestão dos Conteúdos"
+  ],
 
-  /* Etapas da JORNADA do cliente (Administrativo). Edite com as suas. */
-  JOURNEY_STAGES: ["Onboarding", "Extração", "Estratégia", "Criação", "Recorrência", "Renovação"],
+  /* Etapas da JORNADA do cliente (Administrativo) — jornada oFruto */
+  JOURNEY_STAGES: [
+    "Contrato & Onboarding",
+    "Reunião de Extração",
+    "Base Estratégica",
+    "Validação do Cliente",
+    "Produção (recorrência)",
+    "Relatório mensal"
+  ],
 
-  /* Equipe (para atribuir responsável por conteúdo). Adicione nomes. */
-  TEAM: ["Davi Moura"],
+  /* Equipe / responsáveis */
+  TEAM: ["Davi Moura", "Social media", "Editor", "Designer"],
 
   DEFAULT_ONBOARDING: [
     "Assinar contrato",

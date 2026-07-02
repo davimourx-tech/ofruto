@@ -22,82 +22,37 @@
 <script src="../assets/js/data.js"></script>
 <script>
 const STAGES=(window.APP_CONFIG&&APP_CONFIG.PROD_STAGES)||["Ideia","Roteiro","Edição","Pronto"];
-const TEAM=(window.APP_CONFIG&&APP_CONFIG.TEAM)||["Davi Moura"];
-let FCLI='', FETA='', FRESP='';
+const DONE=STAGES[STAGES.length-1];
 
-function allItems(){
-  const items=[];
-  Data.activeClients().forEach(c=>c.projects.forEach(p=>p.posts.forEach(post=>{
-    if(p.kind==='entrega') return;
-    items.push({ c, p, post });
-  })));
-  return items;
-}
-function filtered(){
-  return allItems().filter(x=>
-    (!FCLI || x.c.id===FCLI) &&
-    (!FETA || (x.post.prod||'—')===FETA) &&
-    (!FRESP || x.post.responsavel===FRESP));
-}
+function summary(c){ let total=0,done=0;
+  c.projects.forEach(p=>{ if(p.kind==='entrega') return; p.posts.forEach(x=>{ total++; if(x.prod===DONE) done++; }); });
+  return {total, done, prod:total-done}; }
 
-function card(x){
-  const t=TYPE[x.post.type];
-  const stageOpts=`<option value="">— etapa —</option>`+STAGES.map(s=>`<option ${x.post.prod===s?'selected':''}>${s}</option>`).join('');
-  const respOpts=`<option value="">— responsável —</option>`+TEAM.map(m=>`<option ${x.post.responsavel===m?'selected':''}>${m}</option>`).join('');
-  return `<div class="card pad" style="padding:14px">
-    <div class="row between" style="gap:10px">
-      <a class="row" style="gap:10px;min-width:0" href="projeto.html?c=${x.c.id}&p=${x.p.id}">
-        ${U.avatarHtml(x.c,'')}
-        <div class="col" style="min-width:0">
-          <strong style="font-size:14px">${x.post.title}</strong>
-          <span class="meta-sm">${x.c.name} · ${x.p.name} · ${t.label}${x.post.pilar?' · '+x.post.pilar:''}</span>
-        </div>
-      </a>
-    </div>
-    <div class="row" style="gap:8px;margin-top:12px">
-      <select class="input" style="flex:1;padding:8px 10px" onchange="setEtapa('${x.c.id}','${x.p.id}','${x.post.id}',this.value)">${stageOpts}</select>
-      <select class="input" style="flex:1;padding:8px 10px" onchange="setResp('${x.c.id}','${x.p.id}','${x.post.id}',this.value)">${respOpts}</select>
-    </div>
-  </div>`;
+function clientCard(c){
+  const s=summary(c);
+  return `<a class="card pad hover row between" href="operacional-cliente.html?c=${c.id}">
+    <div class="row" style="gap:14px">${U.avatarHtml(c,'lg')}
+      <div class="col"><strong style="font-size:16px">${c.name}</strong>
+        <span class="meta-sm">${s.total} conteúdos · ${s.prod} em produção · ${s.done} prontos</span></div></div>
+    <span class="row" style="gap:6px">${U.icon('arrow')}</span>
+  </a>`;
 }
 
 function render(){
-  const items=filtered();
-  const cliOpts=`<option value="">Todos os clientes</option>`+Data.activeClients().map(c=>`<option value="${c.id}" ${FCLI===c.id?'selected':''}>${c.name}</option>`).join('');
-  const etaOpts=`<option value="">Todas as etapas</option>`+STAGES.map(s=>`<option ${FETA===s?'selected':''}>${s}</option>`).join('');
-  const respOpts=`<option value="">Todos</option>`+TEAM.map(m=>`<option ${FRESP===m?'selected':''}>${m}</option>`).join('');
-
-  // agrupa por etapa (na ordem do config), + "Sem etapa"
-  const groups=[...STAGES.map(s=>({s,items:items.filter(x=>x.post.prod===s)})), {s:'Sem etapa', items:items.filter(x=>!x.post.prod)}];
-
+  const clients=Data.activeClients();
   document.getElementById("root").innerHTML=`
     <section class="section">
       <div class="eyebrow">Operacional</div>
-      <h1 class="display" style="font-size:clamp(28px,5vw,44px)">Produção de conteúdo</h1>
-      <p class="lead" style="margin-top:10px">Todo conteúdo de todos os clientes, por etapa de produção e responsável.</p>
-      <div class="row wrap" style="gap:10px;margin-top:16px">
-        <select class="input" style="width:auto" onchange="FCLI=this.value;render()">${cliOpts}</select>
-        <select class="input" style="width:auto" onchange="FETA=this.value;render()">${etaOpts}</select>
-        <select class="input" style="width:auto" onchange="FRESP=this.value;render()">${respOpts}</select>
-      </div>
+      <h1 class="display" style="font-size:clamp(28px,5vw,44px)">Produção por cliente</h1>
+      <p class="lead" style="margin-top:10px">Escolha um cliente para ver o processo de produção dele — etapas, prazos e responsáveis.</p>
     </section>
-
     <section class="section">
-      ${items.length? groups.filter(g=>g.items.length).map(g=>`
-        <div style="margin-bottom:26px">
-          <div class="row between" style="margin-bottom:12px">
-            <h2 class="display" style="font-size:20px">${g.s}</h2>
-            <span class="badge">${g.items.length}</span>
-          </div>
-          <div class="grid c3">${g.items.map(card).join('')}</div>
-        </div>`).join('')
-      : '<div class="empty card pad">Nenhum conteúdo por aqui ainda.</div>'}
+      <div class="col stagger" style="gap:14px">
+        ${clients.length?clients.map(clientCard).join(''):'<div class="empty card pad">Nenhum cliente ativo.</div>'}
+      </div>
     </section>`;
+  U.reveal();
 }
-
-async function setEtapa(cid,pid,id,val){ await Store.setPostMeta(cid,pid,id,{prod:val}); render(); }
-async function setResp(cid,pid,id,val){ await Store.setPostMeta(cid,pid,id,{responsavel:val}); U.toast('Responsável atualizado'); }
-
 U.boot(render, {manager:true});
 </script>
 </body>

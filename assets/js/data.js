@@ -282,6 +282,7 @@ const U = {
       sparkle:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2 2M16 16l2 2M18 6l-2 2M8 16l-2 2"/>',
       clapper:'<path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z"/><path d="m6.2 5.3 3.1 3.9"/><path d="m12.4 3.4 3.1 4"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
       calendar:'<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/>',
+      chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
       upload:'<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>',
       instagram:'<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/>',
       tiktok:'<path d="M12 4v12.6a3 3 0 1 1-2.2-2.9"/><path d="M12 4c.4 2.6 2.3 4.2 4.6 4.4"/>',
@@ -346,11 +347,11 @@ const Store = {
       DB.clients = clients.map(c=>({
         id:c.id, token:c.token, name:c.name, handle:c.handle||'', color:c.color||'art-1',
         archived:!!c.archived, message:c.message||'', avatar:c.avatar||'', dados:c.dados||{}, stage:c.stage||'',
-        extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], finance:c.finance||{},
+        extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], finance:c.finance||{}, reports:c.reports||[],
         tasks: tasks.filter(t=>t.client_id===c.id).map(t=>({ id:t.id, title:t.title||'', note:t.note||'', done:!!t.done, due:t.due||'', sort:t.sort||0 })),
         projects: projects.filter(p=>p.client_id===c.id).map(p=>({
           id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'', cover:p.cover||'',
-          kind:p.kind||'conteudo', deadline:p.deadline||'',
+          kind:p.kind||'conteudo', deadline:p.deadline||'', responsavel:p.responsavel||'', prazo:p.prazo||'',
           posts: posts.filter(x=>x.project_id===p.id).map(postFromDb)
         }))
       }));
@@ -361,7 +362,7 @@ const Store = {
   /* ---- escrita (otimista: muda a memória e grava no banco) ---- */
   async addClient({name,handle,projName}){
     const id=genId(), token=genToken(), color=PALETTE[Math.floor(Math.random()*6)];
-    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', avatar:'', dados:{}, stage:'', extraction:{}, diagnostico:{}, matriz:[], finance:{}, tasks:[], projects:[] };
+    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', avatar:'', dados:{}, stage:'', extraction:{}, diagnostico:{}, matriz:[], finance:{}, reports:[], tasks:[], projects:[] };
     if(projName) c.projects.push({ id:genId(), name:projName, status:'breve', intro:'', posts:[] });
     DB.clients.unshift(c);
     if(this.sb){
@@ -447,6 +448,8 @@ const Store = {
   },
   async setProjectStatus(cid,pid,status){ Data.project(cid,pid).status=status;
     if(this.sb) await this.sb.from('projects').update({status}).eq('id',pid); },
+  async setProjectMeta(cid,pid,patch){ Object.assign(Data.project(cid,pid),patch);
+    if(this.sb) await this.sb.from('projects').update(patch).eq('id',pid); },
 
   /* ---- matriz de conteúdo (grade semanal) ---- */
   async setMatriz(cid, arr){ Data.client(cid).matriz=arr;
@@ -455,6 +458,25 @@ const Store = {
   /* ---- financeiro (contrato + parcelas) ---- */
   async setFinance(cid, finance){ Data.client(cid).finance=finance;
     if(this.sb) await this.sb.from('clients').update({ finance }).eq('id',cid); },
+
+  /* ---- relatórios mensais ---- */
+  async setReports(cid, reports){ Data.client(cid).reports=reports;
+    if(this.sb) await this.sb.from('clients').update({ reports }).eq('id',cid); },
+  async generateReport(cid, month, handle, metrics){
+    const c=Data.client(cid);
+    const r=await fetch('/api/relatorio',{ method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ clientName:c.name, handle, month, metrics, diagnostico:c.diagnostico||{} }) });
+    let data; try{ data=await r.json(); }catch(e){ throw new Error('A função /api está publicada no Vercel?'); }
+    if(!r.ok) throw new Error(data.error||'Erro ao gerar o relatório.');
+    return data.analysis||'';
+  },
+  async fetchInstagram(handle){
+    const r=await fetch('/api/instagram',{ method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ handle }) });
+    let data; try{ data=await r.json(); }catch(e){ throw new Error('Função /api/instagram indisponível.'); }
+    if(!r.ok) throw new Error(data.error||'Erro ao puxar do Instagram.');
+    return data;
+  },
 
   /* ---- agenda (eventos) ---- */
   async addEvent(e){
