@@ -22,8 +22,9 @@
 <div class="modal" id="postModal">
   <div class="head"><strong id="pm-title">Editar post</strong><button class="btn-icon" id="x1" onclick="closeModals()"></button></div>
   <div class="body">
-    <div class="field"><label>Título interno</label>
+    <div class="field"><label id="lbl-title">Título interno</label>
       <input class="input" id="f-title" placeholder="Ex.: Reel manifesto"></div>
+    <div id="grp-meta">
     <div class="row" style="gap:12px">
       <div class="field grow"><label>Formato</label>
         <select class="input" id="f-type">
@@ -41,6 +42,22 @@
     <div class="row" style="gap:12px">
       <div class="field grow"><label>Status do conteúdo</label><select class="input" id="f-prod"></select></div>
       <div class="field grow"><label>Responsável</label><select class="input" id="f-responsavel"></select></div>
+    </div>
+    </div>
+    <div id="grp-entrega" class="hidden">
+      <div class="field"><label>Link do material</label>
+        <input class="input" id="f-elink" placeholder="Cole o link do PDF, Google Drive, Notion, Canva...">
+        <span class="hint">O cliente vê um botão “Abrir / baixar material” que leva direto pra esse link. Use o PDF/apresentação que você montou por fora.</span></div>
+      <div class="field"><label>Descrição para o cliente (opcional)</label>
+        <textarea class="textarea" id="f-edesc" style="min-height:90px" placeholder="Um resumo do que é este material — ex.: Aqui está o seu posicionamento, linha editorial e matriz estratégica."></textarea></div>
+      <div class="field"><label>Capa do material (opcional)</label>
+        <div class="row" style="gap:12px;align-items:center">
+          <div class="proj-thumb noimg" id="ec-preview"></div>
+          <label class="btn btn-sm card" for="ec-file" id="ec-uplabel" style="cursor:pointer"></label>
+          <input type="file" id="ec-file" accept="image/*" class="hidden" onchange="ecFile(this)">
+          <button type="button" class="btn btn-sm btn-ghost" onclick="ecClear()">Sem capa</button>
+        </div>
+        <span class="hint">Vira a miniatura do material na lista do cliente. Vazio = ícone de documento.</span></div>
     </div>
     <div id="grp-content">
       <div class="field"><label>Link do vídeo / mídia</label>
@@ -67,6 +84,7 @@
         <textarea class="textarea" id="f-refs" style="min-height:70px" placeholder="Um link por linha (Instagram, TikTok, Pinterest)"></textarea>
         <span class="hint">O cliente vê como cards clicáveis com o ícone da plataforma.</span></div>
     </div>
+    <div id="grp-tail">
     <div class="field"><label>Observação para o cliente (opcional)</label>
       <textarea class="textarea" id="f-note" style="min-height:70px" placeholder="Se vazio, não aparece para o cliente."></textarea></div>
     <div class="field"><label>Status</label>
@@ -76,6 +94,7 @@
         <option value="ajustes">Em ajustes</option>
         <option value="reprovado">Reprovado</option>
       </select></div>
+    </div>
   </div>
   <div class="foot">
     <button class="btn btn-ghost" id="delBtn" onclick="deletePost()" style="margin-right:auto;color:var(--red)">Excluir</button>
@@ -92,6 +111,7 @@ const CID=U.qs("c"), PID=U.qs("p");
 let client, project;
 document.getElementById("x1").innerHTML=U.icon("x");
 document.getElementById("pc-uplabel").innerHTML=U.icon("upload")+" Enviar capa";
+document.getElementById("ec-uplabel").innerHTML=U.icon("upload")+" Enviar capa";
 (function(){ const st=(window.APP_CONFIG&&APP_CONFIG.CONTENT_STATUS)||[];
   document.getElementById('f-prod').innerHTML='<option value="">—</option>'+st.map(s=>`<option>${s}</option>`).join(''); })();
 let EDITING=null, PC_COVER='';
@@ -104,6 +124,15 @@ function pcClear(){ PC_COVER=''; document.getElementById("f-pcurl").value=''; pc
 async function pcFile(input){ const f=input.files[0]; if(!f) return;
   U.toast('Enviando capa...'); const url=await Store.uploadCover(f); input.value='';
   if(url){ PC_COVER=url; document.getElementById("f-pcurl").value=url; pcRefresh(); U.toast('Capa enviada ✅'); } }
+
+/* capa do material (entregável) — usa o mesmo PC_COVER */
+function ecRefresh(){ const el=document.getElementById("ec-preview");
+  if(PC_COVER){ const cv=U.coverAttrs(PC_COVER); el.className='proj-thumb '+cv.cls; el.style.cssText=cv.style; el.innerHTML=''; }
+  else { el.className='proj-thumb noimg'; el.style.cssText=''; el.innerHTML=U.icon('file'); } }
+function ecClear(){ PC_COVER=''; ecRefresh(); }
+async function ecFile(input){ const f=input.files[0]; if(!f) return;
+  U.toast('Enviando capa...'); const url=await Store.uploadCover(f); input.value='';
+  if(url){ PC_COVER=url; ecRefresh(); U.toast('Capa enviada ✅'); } }
 
 function isPlan(){ return project.kind==='planejamento'; }
 function isEntrega(){ return project.kind==='entrega'; }
@@ -176,10 +205,39 @@ function render(){
     </section>
 
     <section class="section">
-      ${isPlan() ? `<div class="col stagger" style="gap:12px">${project.posts.map(postRow).join("") || '<div class="empty card pad">Nenhuma pauta. Clique em “Nova pauta”.</div>'}</div>`
+      ${isEntrega() ? materialList()
+        : isPlan() ? `<div class="col stagger" style="gap:12px">${project.posts.map(postRow).join("") || '<div class="empty card pad">Nenhuma pauta. Clique em “Nova pauta”.</div>'}</div>`
         : postsTable()}
     </section>`;
   U.reveal();
+}
+
+/* lista de materiais (entregável): título, descrição, link do PDF */
+function materialList(){
+  if(!project.posts.length) return '<div class="empty card pad">Nenhum material ainda. Clique em “Novo material” e cole o link do PDF/apresentação.</div>';
+  const rows=project.posts.map(post=>{
+    const desc=(post.caption||'').trim();
+    const thumb = post.cover
+      ? `<div class="${U.coverAttrs(post.cover).cls}" style="width:56px;height:56px;border-radius:14px;flex:none;${U.coverAttrs(post.cover).style}"></div>`
+      : `<div class="noimg" style="width:56px;height:56px;border-radius:14px;flex:none">${U.icon('file')}</div>`;
+    return `<div class="card pad hover">
+      <div class="row between wrap" style="gap:14px">
+        <div class="row grow" style="gap:14px;min-width:220px">
+          ${thumb}
+          <div class="col" style="min-width:0">
+            <strong>${post.title}</strong>
+            <span class="meta-sm">${post.embed?'<span class="badge">'+U.icon('layers')+' Material com link</span>':'<span class="badge is-breve"><span class="pip"></span>Sem link ainda</span>'}</span>
+            ${desc?`<p class="muted" style="margin-top:6px;font-size:13.5px">${desc.slice(0,120)}${desc.length>120?'…':''}</p>`:''}
+          </div>
+        </div>
+        <div class="row" style="gap:8px">
+          ${post.embed?`<a class="btn btn-sm card nowrap" href="${post.embed}" target="_blank" rel="noopener">${U.icon('arrow')} Abrir</a>`:''}
+          <button class="btn btn-sm card nowrap" onclick="edit('${post.id}')">${U.icon('edit')} Editar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="col stagger" style="gap:12px">${rows}</div>`;
 }
 
 /* matriz de conteúdos: tabela no desktop, cards no celular */
@@ -225,39 +283,51 @@ async function quickStatus(id,val){ await Store.setPostMeta(CID,PID,id,{prod:val
 
 /* edit/create */
 function toggleGroups(){
-  const plan=isPlan();
-  document.getElementById("grp-content").classList.toggle("hidden", plan);
+  const plan=isPlan(), entrega=isEntrega();
+  document.getElementById("grp-meta").classList.toggle("hidden", entrega);
+  document.getElementById("grp-content").classList.toggle("hidden", plan||entrega);
   document.getElementById("grp-plan").classList.toggle("hidden", !plan);
+  document.getElementById("grp-entrega").classList.toggle("hidden", !entrega);
+  document.getElementById("grp-tail").classList.toggle("hidden", entrega);
+  document.getElementById("lbl-title").textContent = entrega ? "Título do material" : "Título interno";
 }
 function edit(id){
   EDITING=id; const p=Data.post(CID,PID,id);
-  document.getElementById("pm-title").textContent=isPlan()?"Editar pauta":"Editar post";
+  document.getElementById("pm-title").textContent=isEntrega()?"Editar material":(isPlan()?"Editar pauta":"Editar post");
   document.getElementById("delBtn").style.display="";
   toggleGroups(); fill(p); openModal("postModal");
 }
 function newPost(){
   EDITING=null;
-  document.getElementById("pm-title").textContent=isPlan()?"Nova pauta":"Novo post";
+  document.getElementById("pm-title").textContent=isEntrega()?"Novo material":(isPlan()?"Nova pauta":"Novo post");
   document.getElementById("delBtn").style.display="none";
   toggleGroups();
-  fill({title:"",type:"reel-9-16",date:"",embed:"",caption:"",note:"",status:"pendente",briefing:"",roteiro:"",refs:""});
+  fill({title:"",type:isEntrega()?"documento":"reel-9-16",date:"",embed:"",caption:"",note:"",status:isEntrega()?"aprovado":"pendente",briefing:"",roteiro:"",refs:""});
   openModal("postModal");
 }
 function fill(p){
-  f("title",p.title); f("type",p.type); f("date",p.date); f("embed",p.embed||"");
+  f("title",p.title); f("type",p.type||"reel-9-16"); f("date",p.date); f("embed",p.embed||"");
   f("caption",p.caption||""); f("note",p.note||""); f("status",p.status);
   f("briefing",p.briefing||""); f("roteiro",p.roteiro||""); f("refs",p.refs||""); f("pilar",p.pilar||"");
   f("prod",p.prod||""); f("responsavel",p.responsavel||"");
-  PC_COVER=p.cover||""; f("pcurl",PC_COVER); pcRefresh();
+  f("elink",p.embed||""); f("edesc",p.caption||"");
+  PC_COVER=p.cover||""; f("pcurl",PC_COVER); pcRefresh(); ecRefresh();
 }
 function f(id,val){document.getElementById("f-"+id).value=val;}
 function g(id){return document.getElementById("f-"+id).value;}
 
 async function savePost(){
-  const data={ title:g("title")||"Sem título", type:g("type"), date:g("date"),
-    embed:g("embed").trim(), caption:g("caption").trim(), note:g("note").trim(), status:g("status"),
-    briefing:g("briefing").trim(), roteiro:g("roteiro").trim(), refs:g("refs").trim(), cover:PC_COVER, pilar:g("pilar").trim(),
-    prod:g("prod"), responsavel:g("responsavel") };
+  let data;
+  if(isEntrega()){
+    data={ title:g("title")||"Material", type:"documento", date:"",
+      embed:g("elink").trim(), caption:g("edesc").trim(), note:"", status:"aprovado",
+      briefing:"", roteiro:"", refs:"", cover:PC_COVER, pilar:"", prod:"", responsavel:"" };
+  } else {
+    data={ title:g("title")||"Sem título", type:g("type"), date:g("date"),
+      embed:g("embed").trim(), caption:g("caption").trim(), note:g("note").trim(), status:g("status"),
+      briefing:g("briefing").trim(), roteiro:g("roteiro").trim(), refs:g("refs").trim(), cover:PC_COVER, pilar:g("pilar").trim(),
+      prod:g("prod"), responsavel:g("responsavel") };
+  }
   const wasEditing=!!EDITING;
   await Store.savePost(CID,PID,data,EDITING);
   U.toast(wasEditing?"Salvo":"Criado");

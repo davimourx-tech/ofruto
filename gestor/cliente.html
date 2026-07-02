@@ -121,6 +121,10 @@ function projectCard(p){
   const st = STATUS.project[p.status];
   const pr = Data.projectProgress(p);
   const cv = U.coverAttrs(p.cover || (p.posts[0]?p.posts[0].art:'art-1'));
+  const entrega = p.kind==='entrega', plan = p.kind==='planejamento';
+  const count = entrega
+    ? `${pr.total} ${pr.total===1?'material':'materiais'}`
+    : `${pr.total} ${pr.total===1?'post':'posts'} · ${pr.ok} aprovados`;
   return `
   <div class="card pad hover">
     <div class="row between wrap" style="gap:14px">
@@ -129,11 +133,12 @@ function projectCard(p){
         <div class="col">
           <div class="row wrap" style="gap:8px;margin-bottom:6px">
             <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
-            ${p.kind==='planejamento'?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
+            ${plan?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
+            ${entrega?`<span class="badge">${U.icon('layers')} Entregável</span>`:''}
           </div>
           <strong style="font-size:18px">${p.name}</strong>
-          <div class="meta-sm" style="margin-top:4px">${pr.total} posts · ${pr.ok} aprovados</div>
-          <div class="bar" style="margin-top:10px;max-width:260px"><i style="width:${pr.pct}%"></i></div>
+          <div class="meta-sm" style="margin-top:4px">${count}</div>
+          ${entrega?'' : `<div class="bar" style="margin-top:10px;max-width:260px"><i style="width:${pr.pct}%"></i></div>`}
         </div>
       </a>
       <div class="row" style="gap:8px">

@@ -78,6 +78,12 @@ function embedBlock(){
 }
 
 function mediaBlock(){
+  // material/entregável: nunca embute (evita PDF/Notion/Canva com frame bloqueado).
+  // mostra a capa se houver, senão um bloco de documento — o botão grande abre o link.
+  if(project.kind==='entrega'){
+    if(post.cover) return coverImageBlock();
+    return neutralBlock();
+  }
   // tem link de mídia: no DESKTOP mostra embed; no CELULAR mostra botão pra abrir o Drive.
   // (link direto .mp4 toca embutido nos dois.)
   if(post.embed){
@@ -149,7 +155,9 @@ function render(){
         </div>`:''}
 
         ${entrega
-          ? (post.embed?`<a class="btn btn-primary btn-lg btn-block" href="${post.embed}" target="_blank" rel="noopener">${U.icon('arrow')} Abrir / baixar material</a>`:'')
+          ? (post.embed
+              ? `<a class="btn btn-primary btn-lg btn-block" href="${post.embed}" target="_blank" rel="noopener">${U.icon('download')} Abrir / baixar material</a>`
+              : `<div class="card pad center"><span class="dim">${U.icon('clock')}</span><p class="meta-sm" style="margin-top:6px">Material em preparação.</p></div>`)
           : `<div class="card pad">
               <div class="kv"><span class="k">${U.icon('clock')} Data de publicação</span><strong>${U.fmtDate(post.date)}</strong></div>
               <div class="kv"><span class="k">${U.icon('grid')} Formato</span><strong>${t.label}</strong></div>

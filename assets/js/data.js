@@ -40,7 +40,8 @@ const TYPE = {
   "reel-16-9": { label: "Vídeo 16:9",  ratio: "ratio-16-9", icon: "film" },
   "foto":      { label: "Foto retrato",ratio: "ratio-4-5",  icon: "image" },
   "carrossel": { label: "Carrossel",   ratio: "ratio-4-5",  icon: "layers" },
-  "stories":   { label: "Stories",     ratio: "ratio-9-16", icon: "chat" }
+  "stories":   { label: "Stories",     ratio: "ratio-9-16", icon: "chat" },
+  "documento": { label: "Documento",   ratio: "ratio-4-5",  icon: "file" }
 };
 const WEEKDAYS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 const MONTHS_FULL = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
@@ -293,7 +294,9 @@ const U = {
       instagram:'<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/>',
       tiktok:'<path d="M12 4v12.6a3 3 0 1 1-2.2-2.9"/><path d="M12 4c.4 2.6 2.3 4.2 4.6 4.4"/>',
       pinterest:'<circle cx="12" cy="12" r="9"/><path d="M11.2 16.4 12.4 11M10.6 11.2a2 2 0 1 1 3.2 1.7c-1 .8-2.4.5-2.8-.7"/>',
-      idea:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2h5c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/>'
+      idea:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2h5c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/>',
+      file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/>',
+      download:'<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>'
     };
     return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p[name]||""}</svg>`;
   }
