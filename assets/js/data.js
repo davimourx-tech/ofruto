@@ -39,8 +39,11 @@ const TYPE = {
   "reel-9-16": { label: "Reel 9:16",   ratio: "ratio-9-16", icon: "film" },
   "reel-16-9": { label: "Vídeo 16:9",  ratio: "ratio-16-9", icon: "film" },
   "foto":      { label: "Foto retrato",ratio: "ratio-4-5",  icon: "image" },
-  "carrossel": { label: "Carrossel",   ratio: "ratio-4-5",  icon: "layers" }
+  "carrossel": { label: "Carrossel",   ratio: "ratio-4-5",  icon: "layers" },
+  "stories":   { label: "Stories",     ratio: "ratio-9-16", icon: "chat" }
 };
+const WEEKDAYS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
+const MONTHS_FULL = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 
 /* DB fictício -------------------------------------------------- */
 const DB = {
@@ -298,7 +301,7 @@ const PALETTE = ["art-1","art-2","art-3","art-4","art-5","art-6"];
 
 function postFromDb(x){
   const o={ id:x.id, title:x.title, type:x.type, art:x.art||'art-1', embed:x.embed||'', cover:x.cover||'',
-            caption:x.caption||'', note:x.note||'', status:x.status||'pendente', date:x.pub_date||'',
+            caption:x.caption||'', note:x.note||'', status:x.status||'pendente', date:x.pub_date||'', pilar:x.pilar||'',
             briefing:x.briefing||'', roteiro:x.roteiro||'', refs:x.refs||'', palpite:x.palpite||'' };
   if(x.slides) o.slides=x.slides;
   if(x.request_text) o.request={ scope:x.request_scope||'', text:x.request_text };
@@ -307,7 +310,7 @@ function postFromDb(x){
 function postToDb(p, projectId){
   return { id:p.id, project_id:projectId, title:p.title||'', type:p.type, art:p.art||'art-1', cover:p.cover||'',
            embed:p.embed||'', caption:p.caption||'', note:p.note||'', status:p.status||'pendente',
-           pub_date:p.date||null, slides:p.slides||0,
+           pub_date:p.date||null, slides:p.slides||0, pilar:p.pilar||'',
            briefing:p.briefing||'', roteiro:p.roteiro||'', refs:p.refs||'', palpite:p.palpite||'',
            request_scope:p.request?p.request.scope:'', request_text:p.request?p.request.text:'' };
 }
@@ -328,15 +331,17 @@ const Store = {
     if(this.demo()){ this._loaded=true; return; }   // MODO DEMO: mantém o seed
     try{
       const sb=this.sb;
-      const [cRes,pRes,xRes] = await Promise.all([
+      const [cRes,pRes,xRes,tRes] = await Promise.all([
         sb.from('clients').select('*').order('created_at',{ascending:true}),
         sb.from('projects').select('*').order('sort',{ascending:true}),
-        sb.from('posts').select('*').order('sort',{ascending:true})
+        sb.from('posts').select('*').order('sort',{ascending:true}),
+        sb.from('tasks').select('*').order('sort',{ascending:true})
       ]);
-      const clients=cRes.data||[], projects=pRes.data||[], posts=xRes.data||[];
+      const clients=cRes.data||[], projects=pRes.data||[], posts=xRes.data||[], tasks=(tRes&&tRes.data)||[];
       DB.clients = clients.map(c=>({
         id:c.id, token:c.token, name:c.name, handle:c.handle||'', color:c.color||'art-1',
-        archived:!!c.archived, message:c.message||'',
+        archived:!!c.archived, message:c.message||'', extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], finance:c.finance||{},
+        tasks: tasks.filter(t=>t.client_id===c.id).map(t=>({ id:t.id, title:t.title||'', note:t.note||'', done:!!t.done, due:t.due||'', sort:t.sort||0 })),
         projects: projects.filter(p=>p.client_id===c.id).map(p=>({
           id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'', cover:p.cover||'',
           kind:p.kind||'conteudo', deadline:p.deadline||'',
@@ -350,21 +355,73 @@ const Store = {
   /* ---- escrita (otimista: muda a memória e grava no banco) ---- */
   async addClient({name,handle,projName}){
     const id=genId(), token=genToken(), color=PALETTE[Math.floor(Math.random()*6)];
-    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', projects:[] };
+    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', extraction:{}, diagnostico:{}, matriz:[], finance:{}, tasks:[], projects:[] };
     if(projName) c.projects.push({ id:genId(), name:projName, status:'breve', intro:'', posts:[] });
     DB.clients.unshift(c);
     if(this.sb){
       await this.sb.from('clients').insert({ id, token, name:c.name, handle:c.handle, color, archived:false, message:'' });
       if(projName) await this.sb.from('projects').insert({ id:c.projects[0].id, client_id:id, name:projName, status:'breve', intro:'', sort:0 });
     }
+    await this.seedOnboarding(id);   // cria o checklist padrão
     return c;
   },
+
+  /* ---- onboarding (checklist por cliente) ---- */
+  async seedOnboarding(cid){
+    const defs=(window.APP_CONFIG && APP_CONFIG.DEFAULT_ONBOARDING) || [];
+    for(let i=0;i<defs.length;i++){ await this.addTask(cid, defs[i], i); }
+  },
+  async addTask(cid, title, sort){
+    const c=Data.client(cid); if(!c) return; c.tasks=c.tasks||[];
+    const t={ id:genId(), title:title||'Nova etapa', note:'', done:false, due:'', sort:(sort!=null?sort:c.tasks.length) };
+    c.tasks.push(t);
+    if(this.sb) await this.sb.from('tasks').insert({ id:t.id, client_id:cid, title:t.title, note:'', done:false, due:null, sort:t.sort });
+    return t;
+  },
+  async toggleTask(cid,id){ const t=(Data.client(cid).tasks||[]).find(x=>x.id===id); if(!t) return; t.done=!t.done;
+    if(this.sb) await this.sb.from('tasks').update({done:t.done}).eq('id',id); },
+  async setTaskDue(cid,id,due){ const t=(Data.client(cid).tasks||[]).find(x=>x.id===id); if(!t) return; t.due=due;
+    if(this.sb) await this.sb.from('tasks').update({due:due||null}).eq('id',id); },
+  async renameTask(cid,id,title){ const t=(Data.client(cid).tasks||[]).find(x=>x.id===id); if(!t) return; t.title=title;
+    if(this.sb) await this.sb.from('tasks').update({title}).eq('id',id); },
+  async deleteTask(cid,id){ const c=Data.client(cid); const i=(c.tasks||[]).findIndex(x=>x.id===id); if(i>=0) c.tasks.splice(i,1);
+    if(this.sb) await this.sb.from('tasks').delete().eq('id',id); },
   async setArchived(id,val){ Data.client(id).archived=val;
     if(this.sb) await this.sb.from('clients').update({archived:val}).eq('id',id); },
   async deleteClient(id){ const i=DB.clients.findIndex(c=>c.id===id); if(i>=0) DB.clients.splice(i,1);
     if(this.sb) await this.sb.from('clients').delete().eq('id',id); },
   async setClientMessage(id,msg){ Data.client(id).message=msg;
     if(this.sb) await this.sb.from('clients').update({message:msg}).eq('id',id); },
+  async setExtraction(id, qid, val){
+    const c=Data.client(id); c.extraction=c.extraction||{};
+    const empty = val==null || val==='' || (Array.isArray(val)&&val.length===0);
+    if(empty) delete c.extraction[qid]; else c.extraction[qid]=val;
+    if(this.sb) await this.sb.from('clients').update({ extraction:c.extraction }).eq('id',id);
+  },
+  async setDiagnostico(id, key, val){
+    const c=Data.client(id); c.diagnostico=c.diagnostico||{}; c.diagnostico[key]=val;
+    if(this.sb) await this.sb.from('clients').update({ diagnostico:c.diagnostico }).eq('id',id);
+  },
+  /* monta as respostas da extração e chama a função de IA (/api/diagnostico) */
+  async generateDiagnostico(id){
+    const c=Data.client(id);
+    const tpl=(window.APP_CONFIG && APP_CONFIG.DEFAULT_EXTRACTION)||[];
+    let respostas='';
+    tpl.forEach(b=>b.questions.forEach(q=>{
+      const v=(c.extraction||{})[q.id];
+      if(v && (Array.isArray(v)?v.length:String(v).trim())) respostas += `- ${q.q}\n  ${Array.isArray(v)?v.join(', '):v}\n`;
+    }));
+    if(!respostas.trim()) throw new Error('Preencha a Extração antes de gerar o diagnóstico.');
+    const r = await fetch('/api/diagnostico', {
+      method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ clientName:c.name, respostas })
+    });
+    let data; try{ data=await r.json(); }catch(e){ throw new Error('Resposta inválida do servidor. A função /api está publicada no Vercel?'); }
+    if(!r.ok) throw new Error(data.error||'Erro ao gerar o diagnóstico.');
+    c.diagnostico = { essencia:data.essencia||'', presenca:data.presenca||'', publico:data.publico||'', campo:data.campo||'' };
+    if(this.sb) await this.sb.from('clients').update({ diagnostico:c.diagnostico }).eq('id',id);
+    return c.diagnostico;
+  },
 
   async addProject(cid,{name,status,intro,cover,kind,deadline}){
     const p={ id:genId(), name, status:status||'breve', intro:intro||'', cover:cover||'art-1',
@@ -376,6 +433,38 @@ const Store = {
   },
   async setProjectStatus(cid,pid,status){ Data.project(cid,pid).status=status;
     if(this.sb) await this.sb.from('projects').update({status}).eq('id',pid); },
+
+  /* ---- matriz de conteúdo (grade semanal) ---- */
+  async setMatriz(cid, arr){ Data.client(cid).matriz=arr;
+    if(this.sb) await this.sb.from('clients').update({ matriz:arr }).eq('id',cid); },
+
+  /* ---- financeiro (contrato + parcelas) ---- */
+  async setFinance(cid, finance){ Data.client(cid).finance=finance;
+    if(this.sb) await this.sb.from('clients').update({ finance }).eq('id',cid); },
+
+  /* gera um projeto de planejamento com as pautas do mês, a partir da matriz */
+  async generateMonth(cid, year, month){   // month: 0-11
+    const c=Data.client(cid);
+    const slots=(c.matriz||[]);
+    if(!slots.length) throw new Error('Monte a matriz do cliente primeiro.');
+    const nome=`Conteúdos de ${MONTHS_FULL[month].charAt(0).toUpperCase()+MONTHS_FULL[month].slice(1)} ${year}`;
+    const proj = await this.addProject(cid, { name:nome, status:'andamento', kind:'planejamento', intro:'Planejamento gerado pela matriz. Cada pauta já vem com formato e pilar; falta o roteiro.' });
+    const days = new Date(year, month+1, 0).getDate();
+    let count=0;
+    for(let d=1; d<=days; d++){
+      const wd=new Date(year, month, d).getDay();
+      const daySlots=slots.filter(s=>Number(s.weekday)===wd);
+      for(const s of daySlots){
+        const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const t=TYPE[s.format]||TYPE['reel-9-16'];
+        const title=`${t.label}${s.pilar?' · '+s.pilar:''}`;
+        await this.savePost(cid, proj.id, { title, type:s.format, date:dateStr, pilar:s.pilar||'',
+          status:'pendente', caption:'', note:'', embed:'', cover:'', briefing:'', roteiro:'', refs:'' }, null);
+        count++;
+      }
+    }
+    return { project:proj, count };
+  },
   async setProjectName(cid,pid,name){ Data.project(cid,pid).name=name;
     if(this.sb) await this.sb.from('projects').update({name}).eq('id',pid); },
   async setProjectIntro(cid,pid,intro){ Data.project(cid,pid).intro=intro;
@@ -489,6 +578,9 @@ U.refList = function(text){
     return { url, plat, host, label:U.platformLabel(plat) };
   });
 };
+/* moeda BRL */
+U.brl = function(n){ n=Number(n)||0; return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); };
+
 /* dias restantes até uma data (YYYY-MM-DD) */
 U.daysLeft = function(iso){ if(!iso) return null;
   const end=new Date(iso+'T23:59:59'), now=new Date();
@@ -551,3 +643,4 @@ else document.addEventListener("DOMContentLoaded", paintBrand);
 /* expor globais */
 window.DB=DB; window.Data=Data; window.U=U; window.Store=Store; window.Auth=Auth;
 window.STATUS=STATUS; window.TYPE=TYPE; window.MANAGER=MANAGER;
+window.WEEKDAYS=WEEKDAYS; window.MONTHS_FULL=MONTHS_FULL;

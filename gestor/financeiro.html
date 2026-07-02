@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Financeiro</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <nav class="topnav" id="crumbs"></nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const CID=U.qs("c");
+let client, FIN={};
+
+function daysInMonth(y,m){ return new Date(y,m+1,0).getDate(); }
+function v(id){ return document.getElementById(id).value; }
+
+function genParcelas(){
+  const n = FIN.tipo==='recorrente' ? (Number(FIN.nParcelas)||12) : (Number(FIN.nParcelas)||1);
+  const val = Number(FIN.valorParcela)||0;
+  const start = FIN.inicio ? new Date(FIN.inicio+'T12:00:00') : new Date();
+  const dia = Number(FIN.diaVenc) || start.getDate();
+  const prev = FIN.parcelas||[];
+  const items=[];
+  for(let k=0;k<n;k++){
+    const base=start.getMonth()+k, yy=start.getFullYear()+Math.floor(base/12), mm=((base%12)+12)%12;
+    const d=Math.min(dia, daysInMonth(yy,mm));
+    const due=`${yy}-${String(mm+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const old=prev.find(x=>x.n===k+1);
+    items.push({ n:k+1, due, valor:val, paid:old?old.paid:false, paidDate:old?old.paidDate:'' });
+  }
+  FIN.parcelas=items;
+}
+
+function pStatus(p){
+  if(p.paid) return { cls:'is-aprovado', label:'Recebida' };
+  const today=new Date(); today.setHours(0,0,0,0);
+  const due=new Date(p.due+'T00:00:00');
+  if(due<today) return { cls:'is-reprovado', label:'Vencida' };
+  const d=U.daysLeft(p.due);
+  if(d<=7) return { cls:'is-ajustes', label:d===0?'Vence hoje':'Vence em '+d+'d' };
+  return { cls:'is-pendente', label:'Pendente' };
+}
+
+function parcelaRow(p){
+  const st=pStatus(p);
+  return `<div class="task-row" style="gap:10px;flex-wrap:wrap">
+    <div class="row" style="gap:12px;min-width:200px">
+      <strong style="width:34px">${String(p.n).padStart(2,'0')}</strong>
+      <div class="col">
+        <span>${U.brl(p.valor)}</span>
+        <span class="meta-sm">Vence ${U.fmtDate(p.due)}${p.paid&&p.paidDate?' · recebida '+U.fmtDate(p.paidDate):''}</span>
+      </div>
+    </div>
+    <span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>
+    <div class="row grow" style="gap:8px;justify-content:flex-end">
+      ${!p.paid?`<button class="btn btn-sm card" onclick="cobrar(${p.n})">${U.icon('whats')} Cobrar</button>`:''}
+      <button class="btn btn-sm ${p.paid?'card':'btn-primary'}" onclick="togglePaid(${p.n})">${p.paid?'Desmarcar':'Marcar recebida'}</button>
+    </div>
+  </div>`;
+}
+
+function render(){
+  document.getElementById("crumbs").innerHTML=`<a href="cliente.html?c=${CID}">← ${client.name}</a>`;
+  const parc=FIN.parcelas||[];
+  const total=parc.length, paidN=parc.filter(p=>p.paid).length;
+  const totalVal=parc.reduce((s,p)=>s+Number(p.valor||0),0);
+  const paidVal=parc.filter(p=>p.paid).reduce((s,p)=>s+Number(p.valor||0),0);
+  const prox=parc.filter(p=>!p.paid).sort((a,b)=>a.due.localeCompare(b.due))[0];
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
+      <div class="eyebrow" style="margin:16px 0 0">Financeiro</div>
+      <h1 class="display" style="font-size:clamp(28px,5vw,44px);margin-top:8px">${client.name}</h1>
+    </section>
+
+    ${total?`<section class="section">
+      <div class="grid c4 stagger">
+        ${kpi("Recebido", paidN+"/"+total, "check")}
+        ${kpi("Valor recebido", U.brl(paidVal), "check")}
+        ${kpi("Total do contrato", U.brl(totalVal), "grid")}
+        ${kpi("Próximo vencimento", prox?U.fmtDate(prox.due):"—", "clock")}
+      </div>
+    </section>`:''}
+
+    <section class="section" style="max-width:820px">
+      <div class="card pad">
+        <div class="eyebrow" style="margin-bottom:14px">Contrato</div>
+        <div class="grid c2">
+          <div class="field"><label>WhatsApp do cliente</label>
+            <input class="input" id="f-tel" value="${FIN.telefone||''}" placeholder="55 19 99999-9999"></div>
+          <div class="field"><label>Serviço / pacote</label>
+            <input class="input" id="f-serv" value="${(FIN.servico||'').replace(/"/g,'&quot;')}" placeholder="Ex.: Pacote Raízes"></div>
+          <div class="field"><label>Tipo</label>
+            <select class="input" id="f-tipo">
+              <option value="parcelado" ${FIN.tipo!=='recorrente'?'selected':''}>Parcelado (nº fixo de parcelas)</option>
+              <option value="recorrente" ${FIN.tipo==='recorrente'?'selected':''}>Recorrente mensal</option>
+            </select></div>
+          <div class="field"><label>Link do contrato (Drive)</label>
+            <input class="input" id="f-contrato" value="${(FIN.contrato||'').replace(/"/g,'&quot;')}" placeholder="https://..."></div>
+          <div class="field"><label>Valor da parcela (R$)</label>
+            <input class="input" id="f-valor" type="number" step="0.01" value="${FIN.valorParcela||''}" placeholder="1000"></div>
+          <div class="field"><label>Dia do vencimento</label>
+            <input class="input" id="f-dia" type="number" min="1" max="31" value="${FIN.diaVenc||''}" placeholder="10"></div>
+          <div class="field"><label>Data de início</label>
+            <input class="input" id="f-inicio" type="date" value="${FIN.inicio||''}"></div>
+          <div class="field"><label>Nº de parcelas / meses</label>
+            <input class="input" id="f-n" type="number" min="1" value="${FIN.nParcelas||''}" placeholder="5"></div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="savePlan()">${U.icon('check')} Salvar e gerar parcelas</button>
+        <p class="hint" style="margin-top:8px">Ao salvar, as parcelas são (re)geradas com as datas. O que já estava “recebido” é preservado.</p>
+      </div>
+    </section>
+
+    <section class="section" style="max-width:820px">
+      <h2 class="display" style="font-size:24px;margin-bottom:14px">Parcelas</h2>
+      <div class="card pad">
+        ${total?`<div class="col">${parc.map(parcelaRow).join('')}</div>`
+        :'<p class="meta-sm">Nenhuma parcela. Preencha o contrato acima e clique em “Salvar e gerar parcelas”.</p>'}
+      </div>
+    </section>`;
+  U.reveal();
+}
+function kpi(k,v,ic){return `<div class="card pad"><div class="row between"><span class="meta-sm">${k}</span><span class="dim">${U.icon(ic)}</span></div><div style="font-family:var(--serif);font-weight:700;font-size:26px;color:var(--text);letter-spacing:-.02em;margin-top:6px">${v}</div></div>`;}
+
+async function savePlan(){
+  FIN.telefone=v('f-tel').trim(); FIN.servico=v('f-serv').trim(); FIN.contrato=v('f-contrato').trim();
+  FIN.tipo=v('f-tipo'); FIN.valorParcela=v('f-valor'); FIN.diaVenc=v('f-dia'); FIN.inicio=v('f-inicio'); FIN.nParcelas=v('f-n');
+  genParcelas();
+  await Store.setFinance(CID, FIN); U.toast('Financeiro salvo'); render();
+}
+async function togglePaid(n){
+  const p=(FIN.parcelas||[]).find(x=>x.n===n); if(!p) return;
+  p.paid=!p.paid; p.paidDate=p.paid?new Date().toISOString().slice(0,10):'';
+  await Store.setFinance(CID, FIN); render();
+}
+function cobrar(n){
+  const p=(FIN.parcelas||[]).find(x=>x.n===n); if(!p) return;
+  const tel=(FIN.telefone||'').replace(/\D/g,'');
+  if(!tel){ U.toast('Preencha o WhatsApp do cliente'); return; }
+  const total=FIN.parcelas.length;
+  const msg=`Olá ${client.name.split(' ')[0]}, tudo bem? Passando pra lembrar da parcela ${p.n}/${total} (${U.brl(p.valor)}), com vencimento em ${U.fmtDate(p.due)}. Quando puder, me avisa! Qualquer coisa, fico à disposição. — ${MANAGER.studio}`;
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');
+}
+
+function start(){
+  client=Data.client(CID);
+  if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="hub.html">Voltar</a></div>'; return; }
+  FIN=JSON.parse(JSON.stringify(client.finance||{}));
+  render();
+}
+U.boot(start, {manager:true});
+</script>
+</body>
+</html>

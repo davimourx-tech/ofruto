@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Matriz</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <nav class="topnav" id="crumbs"></nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const CID=U.qs("c");
+let client, MATRIZ=[];
+const FORMATS=Object.keys(TYPE);
+const now=new Date();
+
+function slotRow(s){
+  const wdOpts=WEEKDAYS.map((w,i)=>`<option value="${i}" ${Number(s.weekday)===i?'selected':''}>${w}</option>`).join('');
+  const fmtOpts=FORMATS.map(f=>`<option value="${f}" ${s.format===f?'selected':''}>${TYPE[f].label}</option>`).join('');
+  return `<div class="task-row" style="gap:10px;flex-wrap:wrap">
+    <select class="input" style="width:auto" onchange="edit('${s.id}','weekday',this.value)">${wdOpts}</select>
+    <select class="input" style="width:auto" onchange="edit('${s.id}','format',this.value)">${fmtOpts}</select>
+    <input class="input grow" style="min-width:160px" value="${(s.pilar||'').replace(/"/g,'&quot;')}" placeholder="Pilar / objetivo (você define)" oninput="edit('${s.id}','pilar',this.value)">
+    <button class="btn-icon card" title="Remover" onclick="delSlot('${s.id}')">${U.icon('trash')}</button>
+  </div>`;
+}
+
+function monthCount(){
+  const m=Number(document.getElementById('genMonth').value), y=Number(document.getElementById('genYear').value);
+  if(!MATRIZ.length) return 0;
+  const days=new Date(y,m+1,0).getDate(); let n=0;
+  for(let d=1;d<=days;d++){ const wd=new Date(y,m,d).getDay(); n+=MATRIZ.filter(s=>Number(s.weekday)===wd).length; }
+  return n;
+}
+function refreshCount(){ const el=document.getElementById('genCount'); if(el) el.textContent=monthCount()+' pautas serão criadas'; }
+
+function render(){
+  document.getElementById("crumbs").innerHTML=`<a href="cliente.html?c=${CID}">← ${client.name}</a>`;
+  const monthOpts=MONTHS_FULL.map((m,i)=>`<option value="${i}" ${i===now.getMonth()?'selected':''}>${m.charAt(0).toUpperCase()+m.slice(1)}</option>`).join('');
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
+      <div class="eyebrow" style="margin:16px 0 0">Matriz de conteúdo</div>
+      <h1 class="display" style="font-size:clamp(28px,5vw,44px);margin-top:8px">${client.name}</h1>
+      <p class="lead" style="margin-top:12px">Monte a grade da semana: em cada dia, o formato e o pilar/objetivo (você define os seus). Depois é só gerar o mês.</p>
+    </section>
+
+    <section class="section" style="max-width:760px">
+      <div class="card pad">
+        <div class="row between" style="margin-bottom:12px">
+          <strong>Grade semanal</strong>
+          <button class="btn btn-sm card" onclick="addSlot()">${U.icon('plus')} Adicionar slot</button>
+        </div>
+        <div class="col" id="slots">${MATRIZ.length?MATRIZ.map(slotRow).join(''):'<p class="meta-sm">Nenhum slot ainda. Clique em “Adicionar slot”.</p>'}</div>
+      </div>
+    </section>
+
+    <section class="section" style="max-width:760px">
+      <div class="card pad" style="background:var(--surface-2)">
+        <div class="eyebrow" style="margin-bottom:12px">${U.icon('calendar')} Gerar o mês</div>
+        <div class="row wrap" style="gap:10px;align-items:center">
+          <select class="input" id="genMonth" style="width:auto" onchange="refreshCount()">${monthOpts}</select>
+          <input class="input" id="genYear" type="number" style="width:110px" value="${now.getFullYear()}" oninput="refreshCount()">
+          <button class="btn btn-primary" onclick="gerar()">${U.icon('sparkle')} Gerar mês</button>
+        </div>
+        <p class="meta-sm" id="genCount" style="margin-top:10px"></p>
+        <p class="hint" style="margin-top:4px">Cria um projeto de Planejamento com as pautas já datadas (formato + pilar). Você só escreve os roteiros.</p>
+      </div>
+    </section>`;
+  refreshCount();
+}
+
+async function save(){ await Store.setMatriz(CID, MATRIZ); }
+function addSlot(){ MATRIZ.push({ id:'s'+Date.now()+Math.random().toString(36).slice(2,5), weekday:1, format:'reel-9-16', pilar:'' }); save(); render(); }
+function edit(id,field,val){ const s=MATRIZ.find(x=>x.id===id); if(!s) return; s[field]= field==='weekday'?Number(val):val; save(); refreshCount(); }
+function delSlot(id){ const i=MATRIZ.findIndex(x=>x.id===id); if(i>=0) MATRIZ.splice(i,1); save(); render(); }
+
+async function gerar(){
+  if(!MATRIZ.length){ U.toast('Monte a grade primeiro'); return; }
+  const m=Number(document.getElementById('genMonth').value), y=Number(document.getElementById('genYear').value);
+  const n=monthCount();
+  if(!confirm(`Gerar ${n} pautas em ${MONTHS_FULL[m]} de ${y}? Isso cria um novo projeto de Planejamento.`)) return;
+  try{
+    const res=await Store.generateMonth(CID, y, m);
+    U.toast(`Mês gerado: ${res.count} pautas ✨`);
+    location.href=`projeto.html?c=${CID}&p=${res.project.id}`;
+  }catch(e){ alert('Não deu pra gerar: '+e.message); }
+}
+
+function start(){
+  client=Data.client(CID);
+  if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="hub.html">Voltar</a></div>'; return; }
+  MATRIZ=(client.matriz||[]).map(s=>Object.assign({},s));
+  render();
+}
+U.boot(start, {manager:true});
+</script>
+</body>
+</html>

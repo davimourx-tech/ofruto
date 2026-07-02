@@ -409,6 +409,24 @@ select.select-bare{-webkit-appearance:none;appearance:none;background-image:none
   .topnav a{padding:7px 10px;font-size:13px}
   .section{padding:20px 0}
 }
+/* ---------- Extração / base estratégica ---------- */
+.xblock{margin-bottom:26px}
+.xblock > h3{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.01em;margin-bottom:4px}
+.xq{margin:16px 0}
+.xq > label{display:block;font-size:14px;color:var(--text-2);margin-bottom:8px;line-height:1.45}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+  color:var(--text-2);font-size:13.5px;cursor:pointer;transition:.15s var(--ease)}
+.chip:hover{color:var(--text);border-color:var(--line-2)}
+.chip.on{background:var(--red-soft);border-color:var(--red);color:#fff}
+.saveflag{font-size:12px;color:var(--green);opacity:0;transition:opacity .3s}
+.saveflag.show{opacity:1}
+
+/* ---------- Onboarding checklist ---------- */
+.task-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.task-row:last-child{border-bottom:none}
+input[type=checkbox]{width:19px;height:19px;accent-color:var(--red);flex:none;cursor:pointer}
+
 /* ---------- Seletor de capa (swatches) ---------- */
 .swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
 .swatch{aspect-ratio:1/1;border-radius:10px;border:2px solid transparent;cursor:pointer;

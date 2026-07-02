@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Diagnóstico</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <nav class="topnav" id="crumbs"></nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const CID=U.qs("c");
+let client;
+const MAPS=[
+  { key:"essencia", title:"Mapa de Essência",       hint:"Quem é, o que defende, como fala, narrativa central." },
+  { key:"presenca", title:"Mapa da Presença Atual", hint:"Ponto de partida real: o que funciona, o que quebrar." },
+  { key:"publico",  title:"Retrato do Público",     hint:"Quem segue x quem quer atrair; o que consome e por quê." },
+  { key:"campo",    title:"Mapa do Campo",          hint:"Mercado: onde há ruído e onde há espaço para autoridade." }
+];
+
+function extractionCount(){
+  const tpl=(window.APP_CONFIG&&APP_CONFIG.DEFAULT_EXTRACTION)||[]; let n=0;
+  tpl.forEach(b=>b.questions.forEach(q=>{ const v=(client.extraction||{})[q.id]; if(v&&(Array.isArray(v)?v.length:String(v).trim())) n++; }));
+  return n;
+}
+
+function mapCard(m){
+  const v=(client.diagnostico||{})[m.key]||'';
+  return `<div class="card pad reveal">
+    <div class="eyebrow" style="margin-bottom:6px">${m.title}</div>
+    <p class="meta-sm" style="margin-bottom:12px">${m.hint}</p>
+    <textarea class="textarea" id="d-${m.key}" style="min-height:150px" placeholder="Vazio. Gere com a IA ou escreva você mesmo." onchange="saveDiag('${m.key}',this.value)">${v}</textarea>
+  </div>`;
+}
+
+function render(){
+  const exCount=extractionCount();
+  document.getElementById("crumbs").innerHTML=`<a href="cliente.html?c=${CID}">← ${client.name}</a>`;
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
+      <div class="eyebrow" style="margin:16px 0 0">Diagnóstico · 4 mapas</div>
+      <div class="row between wrap" style="gap:16px;margin-top:8px">
+        <div>
+          <h1 class="display" style="font-size:clamp(28px,5vw,44px)">${client.name}</h1>
+          <p class="lead" style="margin-top:12px">A IA lê a Extração e escreve os 4 mapas no método oFruto. Você pode editar tudo depois.</p>
+        </div>
+        <div class="col" style="gap:8px;align-items:flex-end">
+          <button class="btn btn-primary" id="genBtn" onclick="generate()">${U.icon('sparkle')} Gerar com IA</button>
+          <span class="meta-sm" id="genNote">${exCount} respostas de extração</span>
+        </div>
+      </div>
+      ${exCount===0?`<div class="note-box" style="margin-top:16px">${U.icon('idea')} Preencha a <a href="extracao.html?c=${CID}" style="text-decoration:underline">Extração</a> primeiro — a IA usa aquelas respostas para gerar o diagnóstico.</div>`:''}
+    </section>
+
+    <section class="section">
+      <div class="grid c2 stagger">
+        ${MAPS.map(mapCard).join('')}
+      </div>
+    </section>`;
+  U.reveal();
+}
+
+async function saveDiag(key,val){ await Store.setDiagnostico(CID,key,(val||'').trim()); U.toast("Salvo"); }
+
+async function generate(){
+  const btn=document.getElementById("genBtn");
+  if(extractionCount()===0){ U.toast("Preencha a Extração primeiro"); return; }
+  if(Object.values(client.diagnostico||{}).some(v=>v&&v.trim())){
+    if(!confirm("Isto vai substituir o diagnóstico atual pelo gerado pela IA. Continuar?")) return;
+  }
+  btn.disabled=true; const old=btn.innerHTML; btn.innerHTML=U.icon('sparkle')+" Gerando... (~15s)";
+  try{
+    await Store.generateDiagnostico(CID);
+    U.toast("Diagnóstico gerado ✨"); render();
+  }catch(e){
+    alert("Não deu pra gerar: "+e.message);
+    btn.disabled=false; btn.innerHTML=old;
+  }
+}
+
+function start(){
+  client=Data.client(CID);
+  if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="hub.html">Voltar</a></div>'; return; }
+  render();
+}
+U.boot(start, {manager:true});
+</script>
+</body>
+</html>

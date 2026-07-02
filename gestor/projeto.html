@@ -31,10 +31,13 @@
           <option value="reel-16-9">Vídeo 16:9 (horizontal)</option>
           <option value="foto">Foto retrato</option>
           <option value="carrossel">Carrossel</option>
+          <option value="stories">Stories</option>
         </select></div>
       <div class="field grow"><label>Data de publicação</label>
         <input class="input" id="f-date" type="date"></div>
     </div>
+    <div class="field"><label>Pilar / objetivo (opcional)</label>
+      <input class="input" id="f-pilar" placeholder="Ex.: Educação, Autoridade, Bastidor..."></div>
     <div id="grp-content">
       <div class="field"><label>Link do vídeo / mídia</label>
         <input class="input" id="f-embed" placeholder="Link do Google Drive, YouTube ou um .mp4 direto">
@@ -105,9 +108,10 @@ function postRow(post){
   const hasPalpite = post.palpite? `<div class="note-box" style="margin-top:10px;background:var(--blue-soft);border-color:rgba(75,155,255,.3);color:#bcd9ff"><strong>${U.icon('chat')} Palpite do cliente:</strong><br>${post.palpite}</div>`:'';
   const refsN = plan? U.refList(post.refs).length : 0;
   const summaryText = plan ? (post.briefing||'Sem briefing') : (post.caption||'');
+  const pil = post.pilar?` · ${post.pilar}`:'';
   const metaLine = plan
-    ? `${t.label}${refsN?` · ${refsN} ref.`:''}${post.date?` · ${U.fmtDate(post.date)}`:''}`
-    : `${t.label} · publica ${U.fmtDate(post.date)}`;
+    ? `${t.label}${pil}${refsN?` · ${refsN} ref.`:''}${post.date?` · ${U.fmtDate(post.date)}`:''}`
+    : `${t.label}${pil} · publica ${U.fmtDate(post.date)}`;
   return `
   <div class="card pad hover">
     <div class="row between wrap" style="gap:16px">
@@ -193,7 +197,7 @@ function newPost(){
 function fill(p){
   f("title",p.title); f("type",p.type); f("date",p.date); f("embed",p.embed||"");
   f("caption",p.caption||""); f("note",p.note||""); f("status",p.status);
-  f("briefing",p.briefing||""); f("roteiro",p.roteiro||""); f("refs",p.refs||"");
+  f("briefing",p.briefing||""); f("roteiro",p.roteiro||""); f("refs",p.refs||""); f("pilar",p.pilar||"");
   PC_COVER=p.cover||""; f("pcurl",PC_COVER); pcRefresh();
 }
 function f(id,val){document.getElementById("f-"+id).value=val;}
@@ -202,7 +206,7 @@ function g(id){return document.getElementById("f-"+id).value;}
 async function savePost(){
   const data={ title:g("title")||"Sem título", type:g("type"), date:g("date"),
     embed:g("embed").trim(), caption:g("caption").trim(), note:g("note").trim(), status:g("status"),
-    briefing:g("briefing").trim(), roteiro:g("roteiro").trim(), refs:g("refs").trim(), cover:PC_COVER };
+    briefing:g("briefing").trim(), roteiro:g("roteiro").trim(), refs:g("refs").trim(), cover:PC_COVER, pilar:g("pilar").trim() };
   const wasEditing=!!EDITING;
   await Store.savePost(CID,PID,data,EDITING);
   U.toast(wasEditing?"Salvo":"Criado");
