@@ -248,9 +248,7 @@ function taskRow(t){
       <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}')">
       <span style="${t.done?'text-decoration:line-through;color:var(--text-3)':''}">${t.title}</span>
     </label>
-    <div class="row" style="gap:6px">
-      <button class="btn-icon card" onclick="moveTask('${t.id}',-1)" title="Subir">${U.icon('up')}</button>
-      <button class="btn-icon card" onclick="moveTask('${t.id}',1)" title="Descer">${U.icon('down')}</button>
+    <div class="row" style="gap:8px">
       <input class="input" type="date" value="${t.due||''}" onchange="setTaskDue('${t.id}',this.value)" style="width:auto;padding:6px 10px" title="Prazo">
       <button class="btn-icon card" onclick="delTask('${t.id}')" title="Excluir">${U.icon('trash')}</button>
     </div>

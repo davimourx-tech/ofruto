@@ -462,6 +462,8 @@ select.select-bare{-webkit-appearance:none;appearance:none;background-image:none
 /* ---------- Onboarding checklist ---------- */
 .task-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 0;border-bottom:1px solid var(--line)}
 .task-row.dragover{box-shadow:inset 0 2px 0 var(--red)}
+.task-row > .drag{flex:none}
+@media (max-width:560px){ .task-row > .drag{display:none} }
 .task-row:last-child{border-bottom:none}
 input[type=checkbox]{width:19px;height:19px;accent-color:var(--red);flex:none;cursor:pointer}
 
