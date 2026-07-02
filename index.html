@@ -16,13 +16,16 @@
 </header>
 
 <main class="wrap pagepad">
-  <section class="section center" style="padding-top:64px">
-    <h1 class="display" style="max-width:16ch;margin:0 auto">Agência Criativa oFruto</h1>
-    <p class="lead reveal" style="max-width:40ch;margin:18px auto 0;font-style:italic;color:var(--text-3)">
+  <section class="section center" style="padding-top:60px">
+    <h1 class="display" style="margin:0 auto">Agência Criativa oFruto</h1>
+    <p class="lead" style="max-width:40ch;margin:18px auto 0;font-style:italic;color:var(--text-3)">
       “Todo aquele que permanece em mim, esse dá muito fruto.”<br><span style="font-style:normal;font-size:13px">— João 15:5</span>
     </p>
-    <div class="reveal" style="margin-top:34px">
-      <a class="btn btn-primary btn-lg" href="gestor/hub.html">Entrar no painel <span id="a1"></span></a>
+  </section>
+  <section class="section" style="max-width:440px;margin:0 auto">
+    <div class="glass" style="padding:26px 22px">
+      <div class="eyebrow" style="justify-content:center;margin-bottom:16px">Quem é você?</div>
+      <div class="col stagger" id="people" style="gap:10px"></div>
     </div>
   </section>
 </main>
@@ -31,8 +34,32 @@
 <script src="assets/js/config.js"></script>
 <script src="assets/js/data.js"></script>
 <script>
-document.getElementById("a1").innerHTML=U.icon("arrow");
-U.reveal();
+let PEOPLE=[];
+function personCard(p){
+  const av = p.photo
+    ? `<div class="avatar" style="background-image:url('${p.photo}');background-size:cover;background-position:center"></div>`
+    : `<div class="avatar" style="background:${p.role==='gestor'?'rgba(255,255,255,.12)':'var(--surface-3)'}">${U.initials(p.name)}</div>`;
+  return `<button class="person" onclick="entrar('${p.id}')">
+    <div class="row" style="gap:14px">${av}
+      <div class="col"><strong style="font-size:15px">${p.name}</strong>
+        <span class="meta-sm">${p.role==='gestor'?'Gestor · acesso total':'Equipe · operacional'}</span></div></div>
+    ${U.icon('arrow')}
+  </button>`;
+}
+function renderPeople(){
+  const gestor={ id:'__gestor', name:MANAGER.name, role:'gestor', photo:'', pass:(window.APP_CONFIG&&APP_CONFIG.MANAGER_PASSWORD)||'' };
+  PEOPLE=[gestor].concat(Data.team());
+  document.getElementById("people").innerHTML=PEOPLE.map(personCard).join('');
+}
+function entrar(id){
+  const p=PEOPLE.find(x=>x.id===id); if(!p) return;
+  const pw=prompt(`Senha de ${p.name}:`);
+  if(pw===null) return;
+  if(pw!==p.pass){ alert('Senha incorreta.'); return; }
+  Auth.login({ id:p.id, name:p.name, role:p.role });
+  location.href = p.role==='gestor' ? 'gestor/hub.html' : 'gestor/operacional.html';
+}
+U.boot(renderPeople);
 </script>
 </body>
 </html>

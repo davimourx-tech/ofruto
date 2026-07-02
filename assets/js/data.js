@@ -194,6 +194,9 @@ const Data = {
   clientByToken: (tok) => DB.clients.find(c => c.token === tok) || DB.clients.find(c => c.id === tok),
   events: () => DB.events || [],
   eventsOfClient: (cid) => (DB.events||[]).filter(e => e.client_id === cid),
+  team: () => DB.team || [],
+  teamNames: () => { const arr=[MANAGER.name].concat((DB.team||[]).map(m=>m.name)).filter(Boolean);
+    return arr.filter((v,i)=>arr.indexOf(v)===i); },
   project: (cid, pid) => {
     const c = Data.client(cid); return c ? c.projects.find(p => p.id === pid) : null;
   },
@@ -335,15 +338,17 @@ const Store = {
     if(this.demo()){ this._loaded=true; return; }   // MODO DEMO: mantém o seed
     try{
       const sb=this.sb;
-      const [cRes,pRes,xRes,tRes,eRes] = await Promise.all([
+      const [cRes,pRes,xRes,tRes,eRes,mRes] = await Promise.all([
         sb.from('clients').select('*').order('created_at',{ascending:true}),
         sb.from('projects').select('*').order('sort',{ascending:true}),
         sb.from('posts').select('*').order('sort',{ascending:true}),
         sb.from('tasks').select('*').order('sort',{ascending:true}),
-        sb.from('events').select('*').order('date',{ascending:true})
+        sb.from('events').select('*').order('date',{ascending:true}),
+        sb.from('team').select('*').order('created_at',{ascending:true})
       ]);
       const clients=cRes.data||[], projects=pRes.data||[], posts=xRes.data||[], tasks=(tRes&&tRes.data)||[];
       DB.events = (eRes&&eRes.data)||[];
+      DB.team = (mRes&&mRes.data)||[];
       DB.clients = clients.map(c=>({
         id:c.id, token:c.token, name:c.name, handle:c.handle||'', color:c.color||'art-1',
         archived:!!c.archived, message:c.message||'', avatar:c.avatar||'', dados:c.dados||{}, stage:c.stage||'',
@@ -493,6 +498,18 @@ const Store = {
   async deleteEvent(id){ const i=(DB.events||[]).findIndex(x=>x.id===id); if(i>=0) DB.events.splice(i,1);
     if(this.sb) await this.sb.from('events').delete().eq('id',id); },
 
+  /* ---- equipe (login por pessoa) ---- */
+  async addTeam({name,photo,pass,role}){
+    const m={ id:genId(), name:name||'Sem nome', photo:photo||'', pass:pass||'', role:role||'operacional' };
+    DB.team=DB.team||[]; DB.team.push(m);
+    if(this.sb) await this.sb.from('team').insert(m);
+    return m;
+  },
+  async updateTeam(id,patch){ const m=(DB.team||[]).find(x=>x.id===id); if(!m) return; Object.assign(m,patch);
+    if(this.sb) await this.sb.from('team').update(patch).eq('id',id); },
+  async deleteTeam(id){ const i=(DB.team||[]).findIndex(x=>x.id===id); if(i>=0) DB.team.splice(i,1);
+    if(this.sb) await this.sb.from('team').delete().eq('id',id); },
+
   /* gera um projeto de planejamento com as pautas do mês, a partir da matriz */
   async generateMonth(cid, year, month){   // month: 0-11
     const c=Data.client(cid);
@@ -581,35 +598,21 @@ const Store = {
 };
 
 /* ============================================================
-   AUTH — senha única do painel do gestor (sessão do navegador)
+   AUTH — login por pessoa (gestor / operacional), guardado na sessão
    ============================================================ */
 const Auth = {
-  ok(){ return sessionStorage.getItem('selo_mgr')==='1'; },
-  pass(){ return (window.APP_CONFIG && APP_CONFIG.MANAGER_PASSWORD) || ''; },
-  gate(){
-    return new Promise(resolve=>{
-      if(!this.pass() || this.ok()) return resolve(true);
-      const ov=document.createElement('div');
-      ov.className='authgate';
-      ov.innerHTML=`<div class="authcard">
-        <div class="brand" style="justify-content:center;margin-bottom:18px"><span class="dot"></span> ${MANAGER.studio}</div>
-        <div class="eyebrow" style="justify-content:center">Painel do gestor</div>
-        <h2 class="display" style="text-align:center;font-size:26px;margin-bottom:18px">Acesso restrito</h2>
-        <input class="input" id="authpw" type="password" placeholder="Senha do gestor" autofocus>
-        <button class="btn btn-primary btn-block" id="authgo" style="margin-top:12px">Entrar</button>
-        <p class="hint" style="text-align:center;margin-top:12px">Apenas você acessa esta área. Os clientes usam o link próprio.</p>
-      </div>`;
-      document.body.appendChild(ov);
-      paintBrand();
-      const input=ov.querySelector('#authpw'), go=ov.querySelector('#authgo');
-      const tryPw=()=>{ if(input.value===this.pass()){ sessionStorage.setItem('selo_mgr','1'); ov.remove(); resolve(true); }
-        else { ov.querySelector('.authcard').classList.add('shake'); setTimeout(()=>ov.querySelector('.authcard').classList.remove('shake'),420); input.select(); } };
-      go.onclick=tryPw;
-      input.onkeydown=e=>{ if(e.key==='Enter') tryPw(); };
-      setTimeout(()=>input.focus(),50);
-    });
-  },
-  logout(){ sessionStorage.removeItem('selo_mgr'); location.href='../index.html'; }
+  user(){ try{ return JSON.parse(sessionStorage.getItem('ofruto_user')||'null'); }catch(e){ return null; } },
+  login(u){ sessionStorage.setItem('ofruto_user', JSON.stringify(u)); },
+  logout(){ sessionStorage.removeItem('ofruto_user');
+    location.href = location.pathname.includes('/gestor/') ? '../index.html' : 'index.html'; },
+  /* need: 'gestor' (só gestor) ou 'op' (qualquer pessoa logada) */
+  require(need){
+    const u=this.user();
+    const base = location.pathname.includes('/gestor/') ? '../index.html' : 'index.html';
+    if(!u){ location.replace(base); return false; }
+    if(need==='gestor' && u.role!=='gestor'){ location.replace('operacional.html'); return false; }
+    return true;
+  }
 };
 
 /* referências de planejamento: detecta plataforma e lista links */
@@ -691,11 +694,13 @@ U.coverAttrs = function(cover){
   return { cls:'cover grad '+cover, style:'' };
 };
 
-/* boot helper: (gestor) pede senha -> carrega dados -> renderiza */
+/* boot helper: carrega dados -> checa acesso por papel -> renderiza
+   opts.manager => só gestor;  opts.op => qualquer pessoa logada (gestor/operacional) */
 U.boot = async function(fn, opts){
   opts=opts||{};
-  if(opts.manager) await Auth.gate();
   await Store.load();
+  if(opts.manager){ if(!Auth.require('gestor')) return; }
+  else if(opts.op){ if(!Auth.require('op')) return; }
   fn();
 };
 

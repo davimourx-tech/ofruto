@@ -163,15 +163,28 @@ function render(){
         </div>
       </div>
 
-      <div class="navgrid stagger" style="margin-top:22px">
-        ${navcard('dados','user','Dados','Contato, contrato, acessos')}
-        ${navcard('extracao','idea','Extração','Base estratégica')}
-        ${navcard('diagnostico','sparkle','Diagnóstico','4 mapas com IA')}
-        ${navcard('matriz','grid','Matriz','Gerar o mês')}
-        ${navcard('financeiro','check','Financeiro','Parcelas & cobrança')}
-        ${navcard('operacional-cliente','eye','Operacional','Produção & responsáveis')}
-        ${navcard('agenda','calendar','Agenda','Gravações & reuniões')}
-        ${navcard('relatorio','chart','Relatório','Métricas do mês + IA')}
+      <div style="margin-top:24px">
+        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Processo criativo</div>
+        <div class="navgrid stagger">
+          ${navcard('extracao','idea','Extração','Base estratégica')}
+          ${navcard('diagnostico','sparkle','Diagnóstico','4 mapas com IA')}
+          ${navcard('matriz','grid','Matriz','Pilares & gerar o mês')}
+        </div>
+      </div>
+      <div style="margin-top:22px">
+        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Operação & resultados</div>
+        <div class="navgrid stagger">
+          ${navcard('operacional-cliente','eye','Operacional','Produção & responsáveis')}
+          ${navcard('relatorio','chart','Relatório','Métricas do mês + IA')}
+        </div>
+      </div>
+      <div style="margin-top:22px">
+        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Cliente & administrativo</div>
+        <div class="navgrid stagger">
+          ${navcard('dados','user','Dados','Contato, contrato, acessos')}
+          ${navcard('financeiro','check','Financeiro','Parcelas & cobrança')}
+          ${navcard('agenda','calendar','Agenda','Gravações & reuniões')}
+        </div>
       </div>
 
       <div class="grid c4 stagger" style="margin-top:22px">

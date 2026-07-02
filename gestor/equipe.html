@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Equipe</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <nav class="topnav"><a href="hub.html">← Hub</a></nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+let NEW_PHOTO='';
+function v(id){ return document.getElementById(id).value; }
+
+function memberRow(m){
+  const av = m.photo
+    ? `<div class="avatar" style="background-image:url('${m.photo}');background-size:cover;background-position:center"></div>`
+    : `<div class="avatar" style="background:var(--surface-3)">${U.initials(m.name)}</div>`;
+  return `<div class="card pad row between wrap" style="gap:14px">
+    <div class="row" style="gap:14px;min-width:200px">${av}
+      <div class="col"><strong>${m.name}</strong>
+        <span class="badge ${m.role==='gestor'?'is-aprovado':''}">${m.role==='gestor'?'Gestor':'Operacional'}</span></div></div>
+    <div class="row wrap" style="gap:8px">
+      <input class="input" style="width:auto" type="text" value="${(m.pass||'').replace(/"/g,'&quot;')}" placeholder="senha" onchange="upd('${m.id}','pass',this.value)">
+      <select class="input" style="width:auto" onchange="upd('${m.id}','role',this.value)">
+        <option value="operacional" ${m.role!=='gestor'?'selected':''}>Operacional</option>
+        <option value="gestor" ${m.role==='gestor'?'selected':''}>Gestor</option></select>
+      <button class="btn-icon card" onclick="del('${m.id}')" title="Remover">${U.icon('trash')}</button>
+    </div>
+  </div>`;
+}
+
+function render(){
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <div class="eyebrow">Equipe</div>
+      <h1 class="display" style="font-size:clamp(28px,5vw,44px)">Quem trabalha com você</h1>
+      <p class="lead" style="margin-top:10px">Cadastre a equipe. Funcionários entram e veem só o <strong>Operacional</strong>. Gestor vê tudo.</p>
+    </section>
+
+    <section class="section" style="max-width:720px">
+      <div class="card pad">
+        <div class="eyebrow" style="margin-bottom:14px">Adicionar pessoa</div>
+        <div class="row" style="gap:14px;align-items:center;margin-bottom:12px">
+          <div class="proj-thumb noimg" id="np-preview" style="border-radius:50%">${U.icon('user')}</div>
+          <label class="btn btn-sm card" for="np-file" id="np-uplabel" style="cursor:pointer"></label>
+          <input type="file" id="np-file" accept="image/*" class="hidden" onchange="photoUp(this)">
+        </div>
+        <div class="grid c3">
+          <div class="field"><label>Nome</label><input class="input" id="t-name" placeholder="Nome da pessoa"></div>
+          <div class="field"><label>Senha</label><input class="input" id="t-pass" placeholder="senha de acesso"></div>
+          <div class="field"><label>Função</label>
+            <select class="input" id="t-role"><option value="operacional">Operacional</option><option value="gestor">Gestor</option></select></div>
+        </div>
+        <button class="btn btn-primary" onclick="add()">${U.icon('plus')} Adicionar</button>
+      </div>
+    </section>
+
+    <section class="section" style="max-width:720px">
+      <h2 class="display" style="font-size:22px;margin-bottom:14px">Equipe</h2>
+      <div class="col" style="gap:12px">
+        ${Data.team().length?Data.team().map(memberRow).join(''):'<p class="meta-sm">Ninguém cadastrado ainda.</p>'}
+      </div>
+      <p class="hint" style="margin-top:14px">Você (${MANAGER.name}) é o gestor principal — a senha do gestor fica no config.js.</p>
+    </section>`;
+  document.getElementById("np-uplabel").innerHTML=U.icon("upload")+" Foto";
+}
+
+async function photoUp(input){ const f=input.files[0]; if(!f) return;
+  U.toast('Enviando...'); const url=await Store.uploadCover(f); input.value='';
+  if(url){ NEW_PHOTO=url; const el=document.getElementById('np-preview'); el.className='proj-thumb'; el.style.cssText='border-radius:50%;background-image:url("'+url+'");background-size:cover;background-position:center'; el.innerHTML=''; U.toast('Foto ok'); } }
+async function add(){
+  const name=v('t-name').trim(); if(!name){ U.toast('Informe o nome'); return; }
+  await Store.addTeam({ name, photo:NEW_PHOTO, pass:v('t-pass').trim(), role:v('t-role') });
+  NEW_PHOTO=''; U.toast('Pessoa adicionada'); render();
+}
+async function upd(id,field,val){ await Store.updateTeam(id,{[field]:val}); U.toast('Atualizado'); if(field==='role') render(); }
+async function del(id){ if(!confirm('Remover esta pessoa?')) return; await Store.deleteTeam(id); U.toast('Removida'); render(); }
+
+U.boot(render, {manager:true});
+</script>
+</body>
+</html>

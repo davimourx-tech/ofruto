@@ -24,12 +24,12 @@
 const CID=U.qs("c");
 let client;
 const STAGES=(window.APP_CONFIG&&APP_CONFIG.PROD_STAGES)||["Ideia","Edição","Gestão"];
-const TEAM=(window.APP_CONFIG&&APP_CONFIG.TEAM)||["Davi Moura"];
+const TEAM=()=>Data.teamNames();
 const DONE=["Pronto","Postado"];
 function isDone(post){ return DONE.includes(post.prod); }
 
 function stageOpts(cur){ return `<option value="">— etapa —</option>`+STAGES.map(s=>`<option ${cur===s?'selected':''}>${s}</option>`).join(''); }
-function respOpts(cur){ return `<option value="">— responsável —</option>`+TEAM.map(m=>`<option ${cur===m?'selected':''}>${m}</option>`).join(''); }
+function respOpts(cur){ return `<option value="">— responsável —</option>`+TEAM().map(m=>`<option ${cur===m?'selected':''}>${m}</option>`).join(''); }
 
 function projectCard(p){
   const st=STATUS.project[p.status];
@@ -90,7 +90,7 @@ function start(){
   if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="operacional.html">Voltar</a></div>'; return; }
   render();
 }
-U.boot(start, {manager:true});
+U.boot(start, {op:true});
 </script>
 </body>
 </html>
