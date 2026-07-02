@@ -100,6 +100,7 @@ async function pcFile(input){ const f=input.files[0]; if(!f) return;
   if(url){ PC_COVER=url; document.getElementById("f-pcurl").value=url; pcRefresh(); U.toast('Capa enviada ✅'); } }
 
 function isPlan(){ return project.kind==='planejamento'; }
+function isEntrega(){ return project.kind==='entrega'; }
 
 function postRow(post){
   const st=STATUS.post[post.status], t=TYPE[post.type];
@@ -122,7 +123,7 @@ function postRow(post){
         <div class="col">
           <strong>${post.title}</strong>
           <span class="meta-sm">${metaLine}</span>
-          <div style="margin-top:8px"><span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span></div>
+          <div style="margin-top:8px">${isEntrega()?`<span class="badge">${U.icon('layers')} Material</span>`:`<span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>`}</div>
         </div>
       </div>
       <p class="muted grow" style="min-width:180px;max-width:420px;font-size:13.5px">${summaryText.slice(0,120)}${summaryText.length>120?'…':''}</p>
@@ -135,8 +136,8 @@ function postRow(post){
 function render(){
   const st=STATUS.project[project.status];
   const pr=Data.projectProgress(project);
-  const plan=isPlan();
-  const unit=plan?'pautas':'posts';
+  const plan=isPlan(), entrega=isEntrega();
+  const unit=entrega?'materiais':(plan?'pautas':'posts');
   document.getElementById("root").innerHTML=`
     <section class="section">
       <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
@@ -145,12 +146,13 @@ function render(){
           <div class="row wrap" style="gap:10px;margin-bottom:10px">
             <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
             ${plan?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
+            ${entrega?`<span class="badge">${U.icon('layers')} Entregável</span>`:''}
           </div>
           <div class="row" style="gap:10px;align-items:center">
             <h1 class="display" style="font-size:clamp(28px,5vw,46px)">${project.name}</h1>
             <button class="btn-icon card" title="Renomear projeto" onclick="renameProject()">${U.icon('edit')}</button>
           </div>
-          <p class="muted" style="margin-top:8px">${pr.total} ${unit} · ${pr.ok} aprovadas · ${pr.pct}% concluído · <a class="meta-sm" style="text-decoration:underline;cursor:pointer" onclick="editIntro()">editar mensagem de abertura</a></p>
+          <p class="muted" style="margin-top:8px">${entrega?`${pr.total} ${unit}`:`${pr.total} ${unit} · ${pr.ok} aprovadas · ${pr.pct}% concluído`} · <a class="meta-sm" style="text-decoration:underline;cursor:pointer" onclick="editIntro()">editar mensagem de abertura</a></p>
         </div>
         <div class="row wrap" style="gap:10px">
           <label class="meta-sm" style="display:flex;flex-direction:column;gap:4px">Prazo de aprovação
@@ -160,7 +162,7 @@ function render(){
             <option value="andamento"${project.status==='andamento'?' selected':''}>Em andamento</option>
             <option value="pronto"${project.status==='pronto'?' selected':''}>Pronto p/ visualizar</option>
           </select>
-          <button class="btn btn-primary" onclick="newPost()">${U.icon("plus")} ${plan?'Nova pauta':'Novo post'}</button>
+          <button class="btn btn-primary" onclick="newPost()">${U.icon("plus")} ${entrega?'Novo material':(plan?'Nova pauta':'Novo post')}</button>
         </div>
       </div>
       <div class="bar" style="margin-top:18px"><i style="width:${pr.pct}%"></i></div>

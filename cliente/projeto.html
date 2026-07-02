@@ -44,14 +44,15 @@ function thumb(p){
 function dateBlock(y,m,d){ const wd=DOW[new Date(y,m-1,d).getDay()];
   return `<div class="agenda-date"><div class="num">${String(d).padStart(2,'0')}</div><div class="mo">${MONTHS[m-1].slice(0,3)} · ${wd}</div></div>`; }
 function agendaRow(p, dateHtml){
-  const t=TYPE[p.type], st=STATUS.post[p.status];
+  const t=TYPE[p.type], st=STATUS.post[p.status], entrega=project.kind==='entrega';
+  const tag = entrega ? `<span class="badge">${U.icon('layers')} Material</span>` : `<span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>`;
   return `<div class="agenda-row reveal">
-    ${dateHtml||'<div class="agenda-date"><div class="num">•</div><div class="mo">pauta</div></div>'}
+    ${dateHtml||`<div class="agenda-date"><div class="num">•</div><div class="mo">${entrega?'item':'pauta'}</div></div>`}
     <a class="agenda-post" href="${postLink(p.id)}">
       ${thumb(p)}
       <div class="grow" style="min-width:0">
         <div class="row" style="gap:7px;margin-bottom:5px">${U.icon(t.icon)}<strong style="font-size:14px">${p.title}</strong></div>
-        <span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>
+        ${tag}
       </div>
       ${U.icon('arrow')}
     </a>
@@ -102,7 +103,11 @@ function deadlineBanner(){
 
 function render(){
   const st=STATUS.project[project.status];
-  const plan=project.kind==='planejamento';
+  const plan=project.kind==='planejamento', entrega=project.kind==='entrega';
+  const introDefault = entrega ? 'Materiais e entregáveis do seu projeto. Toque em cada um para abrir.'
+    : plan ? 'Esse é o nosso planejamento de conteúdos. Veja cada pauta, aprove, peça ajustes ou deixe um palpite.'
+    : 'Esses são os conteúdos para aprovação, visualização e acompanhamento. Toque em cada um para ver tudo.';
+  const eyebrow = entrega ? 'Materiais' : plan ? 'Pautas por data' : 'Conteúdos por data';
   document.getElementById("who").textContent=project.name;
   document.getElementById("root").innerHTML=`
     <div class="wrap">
@@ -111,21 +116,22 @@ function render(){
         <div class="row wrap" style="gap:10px;margin:14px 0 6px">
           <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
           ${plan?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
+          ${entrega?`<span class="badge">${U.icon('layers')} Entregável</span>`:''}
         </div>
         <h1 class="display" style="font-size:clamp(28px,6vw,46px)">${project.name}</h1>
-        <p class="lead" style="margin-top:14px">${project.intro||(plan?'Esse é o nosso planejamento de conteúdos. Veja cada pauta, aprove, peça ajustes ou deixe um palpite.':'Esses são os conteúdos para aprovação, visualização e acompanhamento. Toque em cada um para ver tudo.')}</p>
+        <p class="lead" style="margin-top:14px">${project.intro||introDefault}</p>
         ${project.deadline?`<div style="margin-top:18px">${deadlineBanner()}</div>`:''}
       </section>
     </div>
 
     <section class="section">
-      <div class="wrap"><div class="eyebrow" style="margin:0 0 14px">${plan?'Pautas por data':'Conteúdos por data'}</div></div>
+      <div class="wrap"><div class="eyebrow" style="margin:0 0 14px">${eyebrow}</div></div>
       ${buildView()}
       <div class="wrap"><div id="endSentinel" style="height:1px"></div></div>
     </section>`;
   U.reveal();
   setupWhats();
-  watchEnd();
+  if(!entrega) watchEnd();   // entregável não tem fluxo de "avisar que aprovou"
 }
 
 function setupWhats(){

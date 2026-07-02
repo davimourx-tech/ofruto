@@ -30,6 +30,7 @@
       <select class="input" id="f-pkind" onchange="kindChanged()">
         <option value="conteudo">Conteúdo — aprovar posts prontos</option>
         <option value="planejamento">Planejamento — pautas e ideias</option>
+        <option value="entrega">Entregável — material pro cliente ver (ex.: estratégia)</option>
       </select></div>
     <div class="field" id="deadlineWrap"><label>Prazo de aprovação (opcional)</label>
       <input class="input" id="f-pdeadline" type="date">
@@ -150,23 +151,28 @@ function render(){
       <a class="meta-sm" href="hub.html">← Todos os clientes</a>
       <div class="row between wrap" style="gap:18px;margin-top:14px">
         <div class="row" style="gap:18px">
-          <div class="avatar lg ${client.color}">${U.initials(client.name)}</div>
+          ${U.avatarHtml(client,'lg')}
           <div class="col">
             <h1 class="display" style="font-size:clamp(28px,5vw,44px)">${client.name}</h1>
             <span class="muted">${client.handle} · ${client.archived?'Arquivado':'Ativo'}</span>
           </div>
         </div>
         <div class="row wrap" style="gap:10px">
-          <a class="btn card" href="extracao.html?c=${CID}">${U.icon("idea")} Extração</a>
-          <a class="btn card" href="diagnostico.html?c=${CID}">${U.icon("sparkle")} Diagnóstico</a>
-          <a class="btn card" href="matriz.html?c=${CID}">${U.icon("grid")} Matriz</a>
-          <a class="btn card" href="financeiro.html?c=${CID}">${U.icon("check")} Financeiro</a>
           <button class="btn card" onclick="openLink()">${U.icon("link")} Link do cliente</button>
           <button class="btn btn-primary" onclick="openProj()">${U.icon("plus")} Novo projeto</button>
         </div>
       </div>
 
-      <div class="grid c4 stagger" style="margin-top:24px">
+      <div class="navgrid stagger" style="margin-top:22px">
+        ${navcard('dados','user','Dados','Contato, contrato, acessos')}
+        ${navcard('extracao','idea','Extração','Base estratégica')}
+        ${navcard('diagnostico','sparkle','Diagnóstico','4 mapas com IA')}
+        ${navcard('matriz','grid','Matriz','Gerar o mês')}
+        ${navcard('financeiro','check','Financeiro','Parcelas & cobrança')}
+        ${navcard('agenda','calendar','Agenda','Gravações & reuniões')}
+      </div>
+
+      <div class="grid c4 stagger" style="margin-top:22px">
         ${kpi("Posts",pr.total,"grid","var(--text)")}
         ${kpi("Aprovados",pr.ok,"check","var(--green)")}
         ${kpi("Em ajustes",pr.adj+pr.rej,"clock","var(--amber)")}
@@ -238,6 +244,7 @@ async function toggleTask(id){ await Store.toggleTask(CID,id); render(); }
 async function setTaskDue(id,v){ await Store.setTaskDue(CID,id,v); }
 async function delTask(id){ await Store.deleteTask(CID,id); render(); }
 function kpi(k,v,ic,c){return `<div class="card pad"><div class="row between"><span class="meta-sm">${k}</span><span class="dim">${U.icon(ic)}</span></div><div style="font-family:var(--serif);font-weight:700;font-size:36px;color:var(--text);letter-spacing:-.03em;margin-top:4px">${v}</div></div>`;}
+function navcard(page,icon,title,sub){return `<a class="card hover navcard" href="${page}.html?c=${CID}"><span class="nic">${U.icon(icon)}</span><div><strong>${title}</strong><span class="meta-sm">${sub}</span></div></a>`;}
 
 /* actions */
 let NP_COVER='art-1';

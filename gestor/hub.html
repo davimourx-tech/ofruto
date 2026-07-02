@@ -16,6 +16,7 @@
     </a>
     <nav class="topnav">
       <a href="hub.html" class="active">Hub</a>
+      <a href="agenda.html">Agenda</a>
       <a href="../index.html">Sair</a>
     </nav>
   </div>
@@ -28,7 +29,7 @@
     <div class="eyebrow">Painel do gestor</div>
     <div class="row between wrap" style="gap:18px">
       <div>
-        <h1 class="display">Opa, todos os clientes<br>estão aqui.</h1>
+        <h1 class="display" id="greet">Seus clientes</h1>
         <p class="lead" style="margin-top:14px">Acompanhe o progresso de aprovação de cada cliente, edite legendas, deixe observações e gere o link de visualização.</p>
       </div>
       <button class="btn btn-primary btn-lg" onclick="openAdd()">
@@ -38,6 +39,12 @@
 
     <!-- KPIs -->
     <div class="grid c4 stagger" id="kpis" style="margin-top:26px"></div>
+  </section>
+
+  <!-- Painel -->
+  <section class="section">
+    <div class="eyebrow">Painel</div>
+    <div class="grid c3 stagger" id="dashboard"></div>
   </section>
 
   <!-- Clientes ativos -->
@@ -112,6 +119,8 @@
 <script>
 document.getElementById("i-plus").innerHTML = U.icon("plus");
 ["i-x1","i-x2"].forEach(id=>document.getElementById(id).innerHTML=U.icon("x"));
+(function(){ const h=new Date().getHours(); const s=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';
+  document.getElementById("greet").textContent=`${s}, ${MANAGER.name.split(' ')[0]}.`; })();
 
 let MSG_TARGET = null;
 
@@ -139,6 +148,89 @@ function renderKpis(){
     </div>`).join("");
 }
 
+/* ---- Painel: financeiro / operacional / administrativo ---- */
+function telOf(c){ return ((c.finance&&c.finance.telefone)||(c.dados&&c.dados.telefone)||'').replace(/\D/g,''); }
+function cobrarUrl(c,p){
+  const tel=telOf(c); if(!tel) return '';
+  const total=((c.finance&&c.finance.parcelas)||[]).length;
+  const msg=`Olá ${c.name.split(' ')[0]}, tudo bem? Passando pra lembrar da parcela ${p.n}/${total} (${U.brl(p.valor)}), com vencimento em ${U.fmtDate(p.due)}. Quando puder, me avisa! — ${MANAGER.studio}`;
+  return `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+}
+function finance(){
+  let aReceber=0, recebidoMes=0; const venc=[];
+  const today=new Date(); today.setHours(0,0,0,0);
+  const ym=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
+  Data.activeClients().forEach(c=>{
+    ((c.finance&&c.finance.parcelas)||[]).forEach(p=>{
+      const val=Number(p.valor)||0;
+      if(p.paid){ if((p.paidDate||'').startsWith(ym)) recebidoMes+=val; return; }
+      aReceber+=val;
+      const due=new Date(p.due+'T00:00:00');
+      if(due<today) venc.push({c,p,over:true});
+      else if(U.daysLeft(p.due)<=7) venc.push({c,p,over:false});
+    });
+  });
+  venc.sort((a,b)=>a.p.due.localeCompare(b.p.due));
+  return {aReceber,recebidoMes,venc};
+}
+function op(){
+  let voce=0, cliente=0, andamento=0; const need=[];
+  Data.activeClients().forEach(c=>{ const pr=Data.progress(c); voce+=pr.adj+pr.rej; cliente+=pr.pend;
+    c.projects.forEach(p=>{ if(p.status==='andamento') andamento++; });
+    if(pr.adj+pr.rej>0) need.push({c,n:pr.adj+pr.rej}); });
+  need.sort((a,b)=>b.n-a.n);
+  return {voce,cliente,andamento,need};
+}
+function adm(){
+  const onb=[], semContrato=[];
+  Data.activeClients().forEach(c=>{ const t=c.tasks||[]; const d=t.filter(x=>x.done).length;
+    if(t.length && d<t.length) onb.push({c,d,total:t.length});
+    if(!(c.dados&&c.dados.contrato)) semContrato.push(c); });
+  return {onb,semContrato,total:Data.activeClients().length};
+}
+
+function renderDashboard(){
+  const f=finance(), o=op(), a=adm();
+  const finItems = f.venc.slice(0,4).map(x=>`
+    <div class="row between" style="gap:8px;padding:7px 0;border-top:1px solid var(--line)">
+      <a href="cliente.html?c=${x.c.id}" style="min-width:0"><strong style="font-size:13.5px">${x.c.name}</strong>
+        <div class="meta-sm" style="color:${x.over?'var(--red)':'var(--amber)'}">${U.brl(x.p.valor)} · ${x.over?'venceu':'vence'} ${U.fmtDate(x.p.due)}</div></a>
+      ${cobrarUrl(x.c,x.p)?`<a class="btn-icon card" target="_blank" href="${cobrarUrl(x.c,x.p)}" title="Cobrar">${U.icon('whats')}</a>`:''}
+    </div>`).join('') || '<p class="meta-sm" style="padding-top:8px">Nada vencendo. 🎉</p>';
+  const opItems = o.need.slice(0,4).map(x=>`
+    <a class="row between" href="cliente.html?c=${x.c.id}" style="gap:8px;padding:7px 0;border-top:1px solid var(--line)">
+      <strong style="font-size:13.5px">${x.c.name}</strong>
+      <span class="badge is-ajustes"><span class="pip"></span>${x.n}</span></a>`).join('') || '<p class="meta-sm" style="padding-top:8px">Nada aguardando você.</p>';
+  const admItems = a.onb.slice(0,4).map(x=>`
+    <a class="row between" href="cliente.html?c=${x.c.id}" style="gap:8px;padding:7px 0;border-top:1px solid var(--line)">
+      <strong style="font-size:13.5px">${x.c.name}</strong>
+      <span class="meta-sm">onboarding ${x.d}/${x.total}</span></a>`).join('') || '<p class="meta-sm" style="padding-top:8px">Onboardings em dia.</p>';
+
+  document.getElementById("dashboard").innerHTML=`
+    <div class="card pad">
+      <div class="row between"><strong>Financeiro</strong><span class="dim">${U.icon('check')}</span></div>
+      <div style="font-family:var(--serif);font-weight:700;font-size:26px;margin-top:8px;letter-spacing:-.02em">${U.brl(f.aReceber)}</div>
+      <span class="meta-sm">a receber · ${U.brl(f.recebidoMes)} recebido este mês</span>
+      <div style="margin-top:8px">${finItems}</div>
+    </div>
+    <div class="card pad">
+      <div class="row between"><strong>Operacional</strong><span class="dim">${U.icon('eye')}</span></div>
+      <div class="row" style="gap:18px;margin-top:8px">
+        <div><div style="font-family:var(--serif);font-weight:700;font-size:26px;color:var(--amber)">${o.voce}</div><span class="meta-sm">aguardam você</span></div>
+        <div><div style="font-family:var(--serif);font-weight:700;font-size:26px;color:var(--blue)">${o.cliente}</div><span class="meta-sm">aguardam cliente</span></div>
+      </div>
+      <div style="margin-top:8px">${opItems}</div>
+    </div>
+    <div class="card pad">
+      <div class="row between"><strong>Administrativo</strong><span class="dim">${U.icon('user')}</span></div>
+      <div class="row" style="gap:18px;margin-top:8px">
+        <div><div style="font-family:var(--serif);font-weight:700;font-size:26px">${a.total}</div><span class="meta-sm">clientes ativos</span></div>
+        <div><div style="font-family:var(--serif);font-weight:700;font-size:26px;color:var(--amber)">${a.semContrato.length}</div><span class="meta-sm">sem contrato</span></div>
+      </div>
+      <div style="margin-top:8px">${admItems}</div>
+    </div>`;
+}
+
 function clientCard(c){
   const pr = Data.progress(c);
   const need = pr.adj + pr.rej;
@@ -150,7 +242,7 @@ function clientCard(c){
   <div class="card pad hover">
     <div class="row between wrap" style="gap:16px">
       <a class="row grow" style="gap:16px;min-width:240px" href="cliente.html?c=${c.id}">
-        <div class="avatar lg ${c.color}">${U.initials(c.name)}</div>
+        ${U.avatarHtml(c,'lg')}
         <div class="col">
           <strong style="font-size:17px">${c.name}</strong>
           <span class="meta-sm">${c.handle} · ${pr.total} posts</span>
@@ -178,6 +270,7 @@ function clientCard(c){
 
 function render(){
   renderKpis();
+  renderDashboard();
   const act = Data.activeClients();
   document.getElementById("clientList").innerHTML = act.map(clientCard).join("") ||
     `<div class="empty card pad">Nenhum cliente ativo. Clique em “Adicionar cliente”.</div>`;
@@ -189,7 +282,7 @@ function render(){
   document.getElementById("archList").innerHTML = arch.map(c=>`
     <div class="card pad row between">
       <div class="row" style="gap:14px">
-        <div class="avatar ${c.color}" style="opacity:.6">${U.initials(c.name)}</div>
+        <div style="opacity:.6">${U.avatarHtml(c,'')}</div>
         <div class="col"><strong>${c.name}</strong><span class="meta-sm">${c.handle}</span></div>
       </div>
       <div class="row" style="gap:8px">

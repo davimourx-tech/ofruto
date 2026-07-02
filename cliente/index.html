@@ -31,14 +31,16 @@ function projectCard(p){
   const pr=Data.projectProgress(p);
   const clickable = p.status!=="breve";
   const cv=U.coverAttrs(p.cover || (p.posts[0]&&p.posts[0].cover) || 'art-6');
+  const kindTag = p.kind==='entrega' ? `${U.icon('layers')} Entregável` : p.kind==='planejamento' ? `${U.icon('idea')} Planejamento` : `${U.icon(st.live?'clock':'star')} ${st.label}`;
+  const unit = p.kind==='entrega' ? 'materiais' : p.kind==='planejamento' ? 'pautas' : 'conteúdos';
   const inner=`
     <div class="${cv.cls} ratio-16-9" style="border-radius:var(--r-lg);${cv.style}">
       <div class="art-noise"></div>
       <div class="veil"></div>
-      <div class="type-chip">${U.icon(st.live?'clock':'star')} ${st.label}</div>
+      <div class="type-chip">${kindTag}</div>
       <div class="cap">
         <strong style="font-size:19px;display:block">${p.name}</strong>
-        <span class="meta-sm" style="color:#cfd2da">${pr.total} conteúdos${p.status==='pronto'?` · ${pr.ok} aprovados`:''}</span>
+        <span class="meta-sm" style="color:#cfd2da">${pr.total} ${unit}${(p.status==='pronto'&&p.kind!=='entrega')?` · ${pr.ok} aprovados`:''}</span>
       </div>
     </div>`;
   if(clickable){
@@ -68,6 +70,8 @@ function render(){
       </div>
     </section>`:''}
 
+    ${clientAgenda()}
+
     <section class="section">
       <div class="eyebrow">Seus projetos</div>
       <div class="grid c2 stagger">
@@ -76,11 +80,26 @@ function render(){
     </section>
 
     <section class="section center reveal" style="padding-top:30px">
-      <p class="dim" style="font-size:13px">Área de aprovação · ${mgr.studio}</p>
+      <p class="dim" style="font-size:13px">${mgr.studio}</p>
     </section>`;
   U.reveal();
 }
 function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function clientAgenda(){
+  const today=new Date().toISOString().slice(0,10);
+  const evs=Data.eventsOfClient(client.id).filter(e=>e.date>=today)
+    .sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||''))).slice(0,5);
+  if(!evs.length) return '';
+  const LB={gravacao:'Gravação',reuniao:'Reunião',outro:'Evento'};
+  const rows=evs.map(e=>{ const [y,m,d]=e.date.split('-').map(Number);
+    return `<div class="agenda-row">
+      <div class="agenda-date"><div class="num">${String(d).padStart(2,'0')}</div><div class="mo">${MONTHS_FULL[m-1].slice(0,3)}</div></div>
+      <div class="agenda-post" style="cursor:default">
+        <div class="grow" style="min-width:0"><div class="row" style="gap:7px;margin-bottom:4px">${U.icon('calendar')}<strong style="font-size:14px">${e.title}</strong></div>
+        <span class="meta-sm">${e.time?e.time+' · ':''}${LB[e.type]||'Evento'}${e.note?' · '+e.note:''}</span></div>
+      </div></div>`; }).join('');
+  return `<section class="section reveal"><div class="eyebrow">Sua agenda</div><div class="agenda">${rows}</div></section>`;
+}
 
 function start(){
   client = Data.clientByToken(TOKEN);

@@ -409,6 +409,14 @@ select.select-bare{-webkit-appearance:none;appearance:none;background-image:none
   .topnav a{padding:7px 10px;font-size:13px}
   .section{padding:20px 0}
 }
+/* ---------- Navegação do cliente (menu de módulos) ---------- */
+.navgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.navcard{display:flex;align-items:center;gap:13px;text-decoration:none;padding:16px 18px}
+.navcard .nic{width:44px;height:44px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--text);flex:none;transition:.2s var(--ease)}
+.navcard:hover .nic{border-color:var(--line-2);background:var(--surface-3)}
+.navcard strong{font-size:15px;display:block;line-height:1.2}
+
 /* ---------- Extração / base estratégica ---------- */
 .xblock{margin-bottom:26px}
 .xblock > h3{font-family:var(--serif);font-weight:700;font-size:19px;letter-spacing:-.01em;margin-bottom:4px}

@@ -121,6 +121,7 @@ function render(){
   document.getElementById("who").textContent=project.name;
   if(project.kind==='planejamento'){ renderPlan(); return; }
   const st=STATUS.post[post.status], t=TYPE[post.type];
+  const entrega=project.kind==='entrega';
   document.getElementById("root").innerHTML=`
     <section class="section">
       <a class="meta-sm" href="projeto.html?c=${TOKEN}&p=${PID}">← ${project.name}</a>
@@ -134,26 +135,27 @@ function render(){
       <div class="col reveal" style="gap:18px">
         <div>
           <div class="row" style="gap:10px;margin-bottom:10px">
-            <span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>
+            ${entrega?`<span class="badge">${U.icon('layers')} Material</span>`:`<span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>`}
             <span class="badge">${U.icon(t.icon)} ${t.label}</span>
           </div>
           <h1 class="display" style="font-size:clamp(24px,4vw,34px)">${post.title}</h1>
         </div>
 
-        ${post.note?`<div class="note-box">${U.icon('message')} <strong>Observação do gestor:</strong><br>${post.note}</div>`:''}
+        ${post.note?`<div class="note-box">${U.icon('message')} <strong>Observação:</strong><br>${post.note}</div>`:''}
 
-        <div class="card pad">
-          <div class="eyebrow" style="margin-bottom:10px">Legenda</div>
-          <div class="caption-box">${post.caption||'<span class="dim">Sem legenda.</span>'}</div>
-        </div>
+        ${post.caption?`<div class="card pad">
+          <div class="eyebrow" style="margin-bottom:10px">${entrega?'Descrição':'Legenda'}</div>
+          <div class="caption-box">${post.caption}</div>
+        </div>`:''}
 
-        <div class="card pad">
-          <div class="kv"><span class="k">${U.icon('clock')} Data de publicação</span><strong>${U.fmtDate(post.date)}</strong></div>
-          <div class="kv"><span class="k">${U.icon('grid')} Formato</span><strong>${t.label}</strong></div>
-          <div class="kv"><span class="k">${U.icon('eye')} Status atual</span><span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span></div>
-        </div>
-
-        <div id="actions">${actionArea()}</div>
+        ${entrega
+          ? (post.embed?`<a class="btn btn-primary btn-lg btn-block" href="${post.embed}" target="_blank" rel="noopener">${U.icon('arrow')} Abrir / baixar material</a>`:'')
+          : `<div class="card pad">
+              <div class="kv"><span class="k">${U.icon('clock')} Data de publicação</span><strong>${U.fmtDate(post.date)}</strong></div>
+              <div class="kv"><span class="k">${U.icon('grid')} Formato</span><strong>${t.label}</strong></div>
+              <div class="kv"><span class="k">${U.icon('eye')} Status atual</span><span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span></div>
+            </div>
+            <div id="actions">${actionArea()}</div>`}
       </div>
     </div>
 

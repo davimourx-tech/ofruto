@@ -192,6 +192,8 @@ const Data = {
   archivedClients:()=> DB.clients.filter(c => c.archived),
   client: (id)   => DB.clients.find(c => c.id === id),
   clientByToken: (tok) => DB.clients.find(c => c.token === tok) || DB.clients.find(c => c.id === tok),
+  events: () => DB.events || [],
+  eventsOfClient: (cid) => (DB.events||[]).filter(e => e.client_id === cid),
   project: (cid, pid) => {
     const c = Data.client(cid); return c ? c.projects.find(p => p.id === pid) : null;
   },
@@ -331,16 +333,19 @@ const Store = {
     if(this.demo()){ this._loaded=true; return; }   // MODO DEMO: mantém o seed
     try{
       const sb=this.sb;
-      const [cRes,pRes,xRes,tRes] = await Promise.all([
+      const [cRes,pRes,xRes,tRes,eRes] = await Promise.all([
         sb.from('clients').select('*').order('created_at',{ascending:true}),
         sb.from('projects').select('*').order('sort',{ascending:true}),
         sb.from('posts').select('*').order('sort',{ascending:true}),
-        sb.from('tasks').select('*').order('sort',{ascending:true})
+        sb.from('tasks').select('*').order('sort',{ascending:true}),
+        sb.from('events').select('*').order('date',{ascending:true})
       ]);
       const clients=cRes.data||[], projects=pRes.data||[], posts=xRes.data||[], tasks=(tRes&&tRes.data)||[];
+      DB.events = (eRes&&eRes.data)||[];
       DB.clients = clients.map(c=>({
         id:c.id, token:c.token, name:c.name, handle:c.handle||'', color:c.color||'art-1',
-        archived:!!c.archived, message:c.message||'', extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], finance:c.finance||{},
+        archived:!!c.archived, message:c.message||'', avatar:c.avatar||'', dados:c.dados||{},
+        extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], finance:c.finance||{},
         tasks: tasks.filter(t=>t.client_id===c.id).map(t=>({ id:t.id, title:t.title||'', note:t.note||'', done:!!t.done, due:t.due||'', sort:t.sort||0 })),
         projects: projects.filter(p=>p.client_id===c.id).map(p=>({
           id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'', cover:p.cover||'',
@@ -355,7 +360,7 @@ const Store = {
   /* ---- escrita (otimista: muda a memória e grava no banco) ---- */
   async addClient({name,handle,projName}){
     const id=genId(), token=genToken(), color=PALETTE[Math.floor(Math.random()*6)];
-    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', extraction:{}, diagnostico:{}, matriz:[], finance:{}, tasks:[], projects:[] };
+    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', avatar:'', dados:{}, extraction:{}, diagnostico:{}, matriz:[], finance:{}, tasks:[], projects:[] };
     if(projName) c.projects.push({ id:genId(), name:projName, status:'breve', intro:'', posts:[] });
     DB.clients.unshift(c);
     if(this.sb){
@@ -392,6 +397,10 @@ const Store = {
     if(this.sb) await this.sb.from('clients').delete().eq('id',id); },
   async setClientMessage(id,msg){ Data.client(id).message=msg;
     if(this.sb) await this.sb.from('clients').update({message:msg}).eq('id',id); },
+  async setAvatar(id,url){ Data.client(id).avatar=url;
+    if(this.sb) await this.sb.from('clients').update({avatar:url}).eq('id',id); },
+  async setDados(id,dados){ Data.client(id).dados=dados;
+    if(this.sb) await this.sb.from('clients').update({dados}).eq('id',id); },
   async setExtraction(id, qid, val){
     const c=Data.client(id); c.extraction=c.extraction||{};
     const empty = val==null || val==='' || (Array.isArray(val)&&val.length===0);
@@ -441,6 +450,18 @@ const Store = {
   /* ---- financeiro (contrato + parcelas) ---- */
   async setFinance(cid, finance){ Data.client(cid).finance=finance;
     if(this.sb) await this.sb.from('clients').update({ finance }).eq('id',cid); },
+
+  /* ---- agenda (eventos) ---- */
+  async addEvent(e){
+    const ev={ id:genId(), client_id:e.client_id||null, title:e.title||'Evento', date:e.date||'', time:e.time||'', type:e.type||'reuniao', note:e.note||'' };
+    DB.events=DB.events||[]; DB.events.push(ev);
+    if(this.sb) await this.sb.from('events').insert(ev);
+    return ev;
+  },
+  async updateEvent(id, patch){ const ev=(DB.events||[]).find(x=>x.id===id); if(!ev) return; Object.assign(ev,patch);
+    if(this.sb) await this.sb.from('events').update(patch).eq('id',id); },
+  async deleteEvent(id){ const i=(DB.events||[]).findIndex(x=>x.id===id); if(i>=0) DB.events.splice(i,1);
+    if(this.sb) await this.sb.from('events').delete().eq('id',id); },
 
   /* gera um projeto de planejamento com as pautas do mês, a partir da matriz */
   async generateMonth(cid, year, month){   // month: 0-11
@@ -580,6 +601,29 @@ U.refList = function(text){
 };
 /* moeda BRL */
 U.brl = function(n){ n=Number(n)||0; return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); };
+
+/* avatar do cliente: foto (se houver) ou iniciais */
+U.avatarHtml = function(c, cls){
+  cls = cls||'';
+  if(c && c.avatar) return `<div class="avatar ${cls}" style="background-image:url('${c.avatar.replace(/'/g,'%27')}');background-size:cover;background-position:center"></div>`;
+  return `<div class="avatar ${cls} ${(c&&c.color)||''}">${c?U.initials(c.name):''}</div>`;
+};
+
+/* link "adicionar ao Google Calendar" a partir de um evento */
+U.gcalUrl = function(ev){
+  const d=(ev.date||'').replace(/-/g,''); if(!d) return '#';
+  const p=new URLSearchParams({ action:'TEMPLATE', text:ev.title||'Evento', details:ev.note||'' });
+  if(ev.time){
+    let [hh,mm]=ev.time.split(':').map(Number); mm=mm||0;
+    const start=`${d}T${String(hh).padStart(2,'0')}${String(mm).padStart(2,'0')}00`;
+    let eh=(hh+1)%24; const end=`${d}T${String(eh).padStart(2,'0')}${String(mm).padStart(2,'0')}00`;
+    p.set('dates', start+'/'+end);
+  } else {
+    p.set('dates', d+'/'+d);   // dia inteiro
+  }
+  return 'https://calendar.google.com/calendar/render?'+p.toString();
+};
+U.hora = function(t){ return t? t : ''; };
 
 /* dias restantes até uma data (YYYY-MM-DD) */
 U.daysLeft = function(iso){ if(!iso) return null;
