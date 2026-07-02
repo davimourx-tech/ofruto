@@ -16,31 +16,13 @@
 </header>
 
 <main class="wrap pagepad">
-  <section class="section center" style="padding-top:46px">
-    <div class="eyebrow" style="justify-content:center">Bem-vindo</div>
-    <h1 class="display" style="max-width:18ch;margin:0 auto">O app de aprovação da oFruto.</h1>
-    <p class="lead" style="margin:18px auto 0">Escolha por onde entrar:</p>
-  </section>
-
-  <section class="section">
-    <div class="grid c2" style="max-width:860px;margin:0 auto">
-      <a class="card hover pad reveal" href="gestor/hub.html" style="overflow:hidden">
-        <div class="cover grad art-1 ratio-16-9" style="border-radius:var(--r);margin:-20px -20px 18px"><div class="art-noise"></div><div class="veil"></div>
-          <div class="cap"><span class="badge">Interface 1</span></div></div>
-        <div class="row between">
-          <div><strong style="font-size:20px">Entrar como gestor</strong><p class="meta-sm" style="margin-top:4px">Hub, clientes, projetos, editar legendas e status, gerar links.</p></div>
-          <span id="a1"></span>
-        </div>
-      </a>
-
-      <a class="card hover pad reveal" href="cliente/index.html?c=yoko" style="overflow:hidden">
-        <div class="cover grad art-3 ratio-16-9" style="border-radius:var(--r);margin:-20px -20px 18px"><div class="art-noise"></div><div class="veil"></div>
-          <div class="cap"><span class="badge">Interface 2</span></div></div>
-        <div class="row between">
-          <div><strong style="font-size:20px">Entrar como cliente</strong><p class="meta-sm" style="margin-top:4px">Saudação por horário, projetos, aprovar e solicitar ajustes.</p></div>
-          <span id="a2"></span>
-        </div>
-      </a>
+  <section class="section center" style="padding-top:64px">
+    <h1 class="display" style="max-width:16ch;margin:0 auto">Agência Criativa oFruto</h1>
+    <p class="lead reveal" style="max-width:40ch;margin:18px auto 0;font-style:italic;color:var(--text-3)">
+      “Todo aquele que permanece em mim, esse dá muito fruto.”<br><span style="font-style:normal;font-size:13px">— João 15:5</span>
+    </p>
+    <div class="reveal" style="margin-top:34px">
+      <a class="btn btn-primary btn-lg" href="gestor/hub.html">Entrar no painel <span id="a1"></span></a>
     </div>
   </section>
 </main>
@@ -50,7 +32,6 @@
 <script src="assets/js/data.js"></script>
 <script>
 document.getElementById("a1").innerHTML=U.icon("arrow");
-document.getElementById("a2").innerHTML=U.icon("arrow");
 U.reveal();
 </script>
 </body>

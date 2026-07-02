@@ -21,11 +21,9 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/data.js"></script>
 <script>
-const STAGES=(window.APP_CONFIG&&APP_CONFIG.PROD_STAGES)||["Ideia","Roteiro","Edição","Pronto"];
-const DONE=STAGES[STAGES.length-1];
-
+const DONE=["Pronto","Postado"];
 function summary(c){ let total=0,done=0;
-  c.projects.forEach(p=>{ if(p.kind==='entrega') return; p.posts.forEach(x=>{ total++; if(x.prod===DONE) done++; }); });
+  c.projects.forEach(p=>{ if(p.kind==='entrega') return; p.posts.forEach(x=>{ total++; if(DONE.includes(x.prod)) done++; }); });
   return {total, done, prod:total-done}; }
 
 function clientCard(c){

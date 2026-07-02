@@ -347,11 +347,12 @@ const Store = {
       DB.clients = clients.map(c=>({
         id:c.id, token:c.token, name:c.name, handle:c.handle||'', color:c.color||'art-1',
         archived:!!c.archived, message:c.message||'', avatar:c.avatar||'', dados:c.dados||{}, stage:c.stage||'',
-        extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], finance:c.finance||{}, reports:c.reports||[],
+        extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], pilares:c.pilares||[], finance:c.finance||{}, reports:c.reports||[],
         tasks: tasks.filter(t=>t.client_id===c.id).map(t=>({ id:t.id, title:t.title||'', note:t.note||'', done:!!t.done, due:t.due||'', sort:t.sort||0 })),
         projects: projects.filter(p=>p.client_id===c.id).map(p=>({
           id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'', cover:p.cover||'',
           kind:p.kind||'conteudo', deadline:p.deadline||'', responsavel:p.responsavel||'', prazo:p.prazo||'',
+          etapa:p.etapa||'', prazo_inicio:p.prazo_inicio||'', prazo_fim:p.prazo_fim||'',
           posts: posts.filter(x=>x.project_id===p.id).map(postFromDb)
         }))
       }));
@@ -362,7 +363,7 @@ const Store = {
   /* ---- escrita (otimista: muda a memória e grava no banco) ---- */
   async addClient({name,handle,projName}){
     const id=genId(), token=genToken(), color=PALETTE[Math.floor(Math.random()*6)];
-    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', avatar:'', dados:{}, stage:'', extraction:{}, diagnostico:{}, matriz:[], finance:{}, reports:[], tasks:[], projects:[] };
+    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', avatar:'', dados:{}, stage:'', extraction:{}, diagnostico:{}, matriz:[], pilares:[], finance:{}, reports:[], tasks:[], projects:[] };
     if(projName) c.projects.push({ id:genId(), name:projName, status:'breve', intro:'', posts:[] });
     DB.clients.unshift(c);
     if(this.sb){
@@ -454,6 +455,8 @@ const Store = {
   /* ---- matriz de conteúdo (grade semanal) ---- */
   async setMatriz(cid, arr){ Data.client(cid).matriz=arr;
     if(this.sb) await this.sb.from('clients').update({ matriz:arr }).eq('id',cid); },
+  async setPilares(cid, arr){ Data.client(cid).pilares=arr;
+    if(this.sb) await this.sb.from('clients').update({ pilares:arr }).eq('id',cid); },
 
   /* ---- financeiro (contrato + parcelas) ---- */
   async setFinance(cid, finance){ Data.client(cid).finance=finance;

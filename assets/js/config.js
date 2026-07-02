@@ -50,6 +50,9 @@ window.APP_CONFIG = {
     "Relatório mensal"
   ],
 
+  /* Status de cada CONTEÚDO (matriz do projeto) — "Status do vídeo" */
+  CONTENT_STATUS: ["Em processo", "Roteiro pronto", "Gravado", "Editado", "Designer feito", "Pronto", "Postado"],
+
   /* Equipe / responsáveis */
   TEAM: ["Davi Moura", "Social media", "Editor", "Designer"],
 

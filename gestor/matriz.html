@@ -22,7 +22,7 @@
 <script src="../assets/js/data.js"></script>
 <script>
 const CID=U.qs("c");
-let client, MATRIZ=[];
+let client, MATRIZ=[], PILARES=[];
 const FORMATS=Object.keys(TYPE);
 const now=new Date();
 
@@ -32,9 +32,15 @@ function slotRow(s){
   return `<div class="task-row" style="gap:10px;flex-wrap:wrap">
     <select class="input" style="width:auto" onchange="edit('${s.id}','weekday',this.value)">${wdOpts}</select>
     <select class="input" style="width:auto" onchange="edit('${s.id}','format',this.value)">${fmtOpts}</select>
-    <input class="input grow" style="min-width:160px" value="${(s.pilar||'').replace(/"/g,'&quot;')}" placeholder="Pilar / objetivo (você define)" oninput="edit('${s.id}','pilar',this.value)">
+    <input class="input grow" list="pilar-list" style="min-width:160px" value="${(s.pilar||'').replace(/"/g,'&quot;')}" placeholder="Pilar / objetivo" oninput="edit('${s.id}','pilar',this.value)">
     <button class="btn-icon card" title="Remover" onclick="delSlot('${s.id}')">${U.icon('trash')}</button>
   </div>`;
+}
+function pilarCard(p){
+  return `<a class="card pad hover row between" href="matriz-pilar.html?c=${CID}&id=${p.id}">
+    <div class="col" style="min-width:0"><strong>${p.nome||'Sem nome'}</strong>
+      <span class="meta-sm">${[p.funcao,p.plataforma].filter(Boolean).join(' · ')||'Definir'}</span></div>
+    ${U.icon('arrow')}</a>`;
 }
 
 function monthCount(){
@@ -54,7 +60,19 @@ function render(){
       <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
       <div class="eyebrow" style="margin:16px 0 0">Matriz de conteúdo</div>
       <h1 class="display" style="font-size:clamp(28px,5vw,44px);margin-top:8px">${client.name}</h1>
-      <p class="lead" style="margin-top:12px">Monte a grade da semana: em cada dia, o formato e o pilar/objetivo (você define os seus). Depois é só gerar o mês.</p>
+      <p class="lead" style="margin-top:12px">Defina seus pilares de conteúdo (cada um vira uma página detalhável) e monte a grade da semana. Depois é só gerar o mês.</p>
+    </section>
+
+    <datalist id="pilar-list">${PILARES.map(p=>`<option value="${(p.nome||'').replace(/"/g,'&quot;')}">`).join('')}</datalist>
+
+    <section class="section" style="max-width:760px">
+      <div class="card pad">
+        <div class="row between" style="margin-bottom:12px">
+          <div><strong>Pilares de conteúdo</strong><div class="meta-sm">Clique num pilar para detalhar o formato.</div></div>
+          <button class="btn btn-sm card" onclick="addPilar()">${U.icon('plus')} Pilar</button>
+        </div>
+        <div class="grid c2" style="gap:12px">${PILARES.length?PILARES.map(pilarCard).join(''):'<p class="meta-sm">Nenhum pilar ainda. Clique em “Pilar” para criar.</p>'}</div>
+      </div>
     </section>
 
     <section class="section" style="max-width:760px">
@@ -83,6 +101,12 @@ function render(){
 }
 
 async function save(){ await Store.setMatriz(CID, MATRIZ); }
+async function addPilar(){
+  const id='p'+Date.now()+Math.random().toString(36).slice(2,5);
+  PILARES.push({ id, nome:'Novo pilar', funcao:'', formatos:[], plataforma:'', descricao:'' });
+  await Store.setPilares(CID, PILARES);
+  location.href=`matriz-pilar.html?c=${CID}&id=${id}`;
+}
 function addSlot(){ MATRIZ.push({ id:'s'+Date.now()+Math.random().toString(36).slice(2,5), weekday:1, format:'reel-9-16', pilar:'' }); save(); render(); }
 function edit(id,field,val){ const s=MATRIZ.find(x=>x.id===id); if(!s) return; s[field]= field==='weekday'?Number(val):val; save(); refreshCount(); }
 function delSlot(id){ const i=MATRIZ.findIndex(x=>x.id===id); if(i>=0) MATRIZ.splice(i,1); save(); render(); }
@@ -103,6 +127,7 @@ function start(){
   client=Data.client(CID);
   if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="hub.html">Voltar</a></div>'; return; }
   MATRIZ=(client.matriz||[]).map(s=>Object.assign({},s));
+  PILARES=(client.pilares||[]).map(p=>Object.assign({},p));
   render();
 }
 U.boot(start, {manager:true});

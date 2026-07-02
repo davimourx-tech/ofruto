@@ -39,7 +39,7 @@
     <div class="field"><label>Pilar / objetivo (opcional)</label>
       <input class="input" id="f-pilar" placeholder="Ex.: Educação, Autoridade, Bastidor..."></div>
     <div class="row" style="gap:12px">
-      <div class="field grow"><label>Etapa de produção</label><select class="input" id="f-prod"></select></div>
+      <div class="field grow"><label>Status do conteúdo</label><select class="input" id="f-prod"></select></div>
       <div class="field grow"><label>Responsável</label><select class="input" id="f-responsavel"></select></div>
     </div>
     <div id="grp-content">
@@ -92,7 +92,7 @@ const CID=U.qs("c"), PID=U.qs("p");
 let client, project;
 document.getElementById("x1").innerHTML=U.icon("x");
 document.getElementById("pc-uplabel").innerHTML=U.icon("upload")+" Enviar capa";
-(function(){ const st=(window.APP_CONFIG&&APP_CONFIG.PROD_STAGES)||[]; const tm=(window.APP_CONFIG&&APP_CONFIG.TEAM)||[];
+(function(){ const st=(window.APP_CONFIG&&APP_CONFIG.CONTENT_STATUS)||[]; const tm=(window.APP_CONFIG&&APP_CONFIG.TEAM)||[];
   document.getElementById('f-prod').innerHTML='<option value="">—</option>'+st.map(s=>`<option>${s}</option>`).join('');
   document.getElementById('f-responsavel').innerHTML='<option value="">—</option>'+tm.map(m=>`<option>${m}</option>`).join(''); })();
 let EDITING=null, PC_COVER='';
@@ -177,12 +177,35 @@ function render(){
     </section>
 
     <section class="section">
-      <div class="col stagger" style="gap:12px">
-        ${project.posts.map(postRow).join("") || '<div class="empty card pad">Nenhum post. Clique em “Novo post”.</div>'}
-      </div>
+      ${isPlan() ? `<div class="col stagger" style="gap:12px">${project.posts.map(postRow).join("") || '<div class="empty card pad">Nenhuma pauta. Clique em “Nova pauta”.</div>'}</div>`
+        : postsTable()}
     </section>`;
   U.reveal();
 }
+
+/* matriz/tabela de conteúdos (projetos de conteúdo/entregável) */
+function postsTable(){
+  if(!project.posts.length) return '<div class="empty card pad">Nenhum conteúdo. Clique em “Novo”.</div>';
+  const CS=(window.APP_CONFIG&&APP_CONFIG.CONTENT_STATUS)||[];
+  const rows=project.posts.map(post=>{
+    const t=TYPE[post.type];
+    const opts='<option value="">—</option>'+CS.map(s=>`<option ${post.prod===s?'selected':''}>${s}</option>`).join('');
+    const link = post.embed ? `<a href="${post.embed}" target="_blank" rel="noopener" title="Abrir link">${U.icon('arrow')}</a>` : '<span class="dim">—</span>';
+    return `<tr>
+      <td><a onclick="edit('${post.id}')" style="cursor:pointer"><strong>${post.title}</strong>${post.pilar?`<div class="meta-sm">${post.pilar}</div>`:''}</a></td>
+      <td><span class="badge">${U.icon(t.icon)} ${t.label}</span></td>
+      <td><select class="input select-bare" style="padding:6px 10px" onchange="quickStatus('${post.id}',this.value)">${opts}</select></td>
+      <td class="meta-sm nowrap">${post.date?U.fmtDate(post.date):'—'}</td>
+      <td class="center">${link}</td>
+      <td class="center">${post.responsavel?`<span class="meta-sm">${post.responsavel}</span>`:'<span class="dim">—</span>'}</td>
+      <td class="center"><button class="btn-icon card" onclick="edit('${post.id}')" title="Editar">${U.icon('edit')}</button></td>
+    </tr>`;
+  }).join('');
+  return `<div class="card pad" style="overflow-x:auto"><table class="mtable">
+    <thead><tr><th>Tema & roteiro</th><th>Formato</th><th>Status</th><th>Data</th><th>Link</th><th>Resp.</th><th></th></tr></thead>
+    <tbody>${rows}</tbody></table></div>`;
+}
+async function quickStatus(id,val){ await Store.setPostMeta(CID,PID,id,{prod:val}); U.toast('Status atualizado'); }
 
 /* edit/create */
 function toggleGroups(){

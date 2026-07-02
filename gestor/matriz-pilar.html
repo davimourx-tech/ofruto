@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Pilar</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <nav class="topnav" id="crumbs"></nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const CID=U.qs("c"), PID=U.qs("id");
+let client, PILARES=[], P=null;
+const FUNCOES=["Atrair","Conectar","Converter","Reter"];
+const FORMATOS=["Reels","Carrossel","Foto","Stories","Vídeo"];
+function v(id){ return document.getElementById(id).value; }
+
+function render(){
+  document.getElementById("crumbs").innerHTML=`<a href="matriz.html?c=${CID}">← Matriz</a>`;
+  const funcOpts=`<option value="">—</option>`+FUNCOES.map(f=>`<option ${P.funcao===f?'selected':''}>${f}</option>`).join('');
+  const fmtChips=FORMATOS.map(f=>`<button type="button" class="chip ${(P.formatos||[]).includes(f)?'on':''}" onclick="toggleFmt('${f}')">${f}</button>`).join('');
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <a class="meta-sm" href="matriz.html?c=${CID}">← Matriz de ${client.name}</a>
+      <div class="eyebrow" style="margin:16px 0 0">Pilar de conteúdo</div>
+      <input class="input" id="p-nome" value="${(P.nome||'').replace(/"/g,'&quot;')}" placeholder="Nome do pilar (ex.: Universo, Educação, Prova...)"
+        style="font-family:var(--serif);font-weight:700;font-size:clamp(24px,4vw,34px);border:none;background:transparent;padding:8px 0;margin-top:6px">
+    </section>
+
+    <section class="section" style="max-width:760px">
+      <div class="card pad">
+        <div class="grid c2">
+          <div class="field"><label>Função</label><select class="input" id="p-funcao">${funcOpts}</select></div>
+          <div class="field"><label>Plataforma</label><input class="input" id="p-plat" value="${(P.plataforma||'').replace(/"/g,'&quot;')}" placeholder="Ex.: Instagram"></div>
+        </div>
+        <div class="field"><label>Formatos / categoria</label><div class="chips">${fmtChips}</div></div>
+        <div class="field"><label>Descrição — o que é esse pilar/formato?</label>
+          <textarea class="textarea" id="p-desc" style="min-height:200px" placeholder="Explique o conceito, o objetivo, o tom, exemplos de tema, referências... tudo que orienta a criação desse formato.">${P.descricao||''}</textarea></div>
+      </div>
+      <div class="row wrap" style="gap:10px;margin-top:16px">
+        <button class="btn btn-primary" onclick="salvar()">${U.icon('check')} Salvar pilar</button>
+        <button class="btn btn-ghost" style="color:var(--red)" onclick="excluir()">Excluir pilar</button>
+      </div>
+    </section>`;
+}
+
+function toggleFmt(f){ P.formatos=P.formatos||[]; const i=P.formatos.indexOf(f); if(i>=0) P.formatos.splice(i,1); else P.formatos.push(f); render(); }
+async function salvar(){
+  P.nome=v('p-nome').trim()||'Sem nome'; P.funcao=v('p-funcao'); P.plataforma=v('p-plat').trim(); P.descricao=v('p-desc').trim();
+  const i=PILARES.findIndex(x=>x.id===PID); if(i>=0) PILARES[i]=P; else PILARES.push(P);
+  await Store.setPilares(CID, PILARES); U.toast('Pilar salvo ✅');
+}
+async function excluir(){ if(!confirm('Excluir este pilar?')) return;
+  PILARES=PILARES.filter(x=>x.id!==PID); await Store.setPilares(CID, PILARES); location.href=`matriz.html?c=${CID}`; }
+
+function start(){
+  client=Data.client(CID);
+  if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado.</div>'; return; }
+  PILARES=(client.pilares||[]).map(p=>Object.assign({},p));
+  P=PILARES.find(x=>x.id===PID) || { id:PID, nome:'Novo pilar', funcao:'', formatos:[], plataforma:'', descricao:'' };
+  render();
+}
+U.boot(start, {manager:true});
+</script>
+</body>
+</html>
