@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Financeiro geral</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <nav class="topnav"><a href="hub.html">← Hub</a></nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+function telOf(c){ return ((c.finance&&c.finance.telefone)||(c.dados&&c.dados.telefone)||'').replace(/\D/g,''); }
+function cobrarUrl(c,p){ const tel=telOf(c); if(!tel) return '';
+  const total=((c.finance&&c.finance.parcelas)||[]).length;
+  const msg=`Olá ${c.name.split(' ')[0]}, tudo bem? Passando pra lembrar da parcela ${p.n}/${total} (${U.brl(p.valor)}), com vencimento em ${U.fmtDate(p.due)}. Quando puder, me avisa! — ${MANAGER.studio}`;
+  return `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`; }
+
+function compute(){
+  let aReceber=0, recebidoMes=0, totalContratos=0; const venc=[], porCliente=[];
+  const today=new Date(); today.setHours(0,0,0,0);
+  const ym=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0');
+  Data.activeClients().forEach(c=>{
+    const parc=(c.finance&&c.finance.parcelas)||[]; let cReceber=0, cRecebido=0;
+    parc.forEach(p=>{ const val=Number(p.valor)||0; totalContratos+=val;
+      if(p.paid){ cRecebido+=val; if((p.paidDate||'').startsWith(ym)) recebidoMes+=val; return; }
+      aReceber+=val; cReceber+=val;
+      const due=new Date(p.due+'T00:00:00');
+      if(due<today) venc.push({c,p,over:true}); else if(U.daysLeft(p.due)<=7) venc.push({c,p,over:false});
+    });
+    if(parc.length) porCliente.push({c, receber:cReceber, recebido:cRecebido});
+  });
+  venc.sort((a,b)=>a.p.due.localeCompare(b.p.due));
+  return {aReceber, recebidoMes, totalContratos, venc, porCliente};
+}
+
+function render(){
+  const f=compute();
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <div class="eyebrow">Financeiro</div>
+      <h1 class="display" style="font-size:clamp(28px,5vw,44px)">Visão geral</h1>
+      <div class="grid c4 stagger" style="margin-top:20px">
+        ${kpi("A receber", U.brl(f.aReceber))}
+        ${kpi("Recebido este mês", U.brl(f.recebidoMes))}
+        ${kpi("Total em contratos", U.brl(f.totalContratos))}
+        ${kpi("Vencendo / vencidas", f.venc.length)}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="display" style="font-size:22px;margin-bottom:14px">A cobrar</h2>
+      <div class="card pad">
+        ${f.venc.length? f.venc.map(x=>`
+          <div class="row between" style="gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+            <a href="financeiro.html?c=${x.c.id}" class="row" style="gap:10px;min-width:0">${U.avatarHtml(x.c,'')}
+              <div class="col"><strong style="font-size:13.5px">${x.c.name}</strong>
+              <span class="meta-sm" style="color:${x.over?'var(--red)':'var(--amber)'}">${U.brl(x.p.valor)} · ${x.over?'venceu':'vence'} ${U.fmtDate(x.p.due)}</span></div></a>
+            ${cobrarUrl(x.c,x.p)?`<a class="btn btn-sm card nowrap" target="_blank" href="${cobrarUrl(x.c,x.p)}">${U.icon('whats')} Cobrar</a>`:''}
+          </div>`).join('')
+        : '<p class="meta-sm">Nada vencendo. 🎉</p>'}
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="display" style="font-size:22px;margin-bottom:14px">Por cliente</h2>
+      <div class="col stagger" style="gap:12px">
+        ${f.porCliente.length? f.porCliente.map(x=>`
+          <a class="card pad row between hover" href="financeiro.html?c=${x.c.id}">
+            <div class="row" style="gap:12px">${U.avatarHtml(x.c,'')}<strong>${x.c.name}</strong></div>
+            <div class="row" style="gap:18px"><span class="meta-sm">Recebido <strong style="color:var(--green)">${U.brl(x.recebido)}</strong></span>
+            <span class="meta-sm">A receber <strong>${U.brl(x.receber)}</strong></span></div>
+          </a>`).join('')
+        : '<div class="empty card pad">Nenhum cliente com financeiro preenchido.</div>'}
+      </div>
+    </section>`;
+  U.reveal();
+}
+function kpi(k,v){return `<div class="card pad"><span class="meta-sm">${k}</span><div style="font-family:var(--serif);font-weight:700;font-size:26px;letter-spacing:-.02em;margin-top:4px">${v}</div></div>`;}
+
+U.boot(render, {manager:true});
+</script>
+</body>
+</html>

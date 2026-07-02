@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Administrativo</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <nav class="topnav"><a href="hub.html">← Hub</a></nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const JORNADA=(window.APP_CONFIG&&APP_CONFIG.JOURNEY_STAGES)||["Onboarding","Criação","Recorrência"];
+
+function row(c){
+  const d=c.dados||{};
+  const t=c.tasks||[]; const done=t.filter(x=>x.done).length;
+  const stageOpts=`<option value="">— etapa da jornada —</option>`+JORNADA.map(s=>`<option ${c.stage===s?'selected':''}>${s}</option>`).join('');
+  return `<div class="card pad">
+    <div class="row between wrap" style="gap:14px">
+      <a class="row grow" style="gap:14px;min-width:220px" href="cliente.html?c=${c.id}">
+        ${U.avatarHtml(c,'lg')}
+        <div class="col">
+          <strong style="font-size:16px">${c.name}</strong>
+          <span class="meta-sm">${d.servico||'Sem serviço definido'}</span>
+          <div class="row wrap" style="gap:8px;margin-top:8px">
+            ${d.contrato?`<a class="badge is-aprovado" href="${d.contrato}" target="_blank" rel="noopener" onclick="event.stopPropagation()"><span class="pip"></span>Contrato</a>`:`<span class="badge is-reprovado"><span class="pip"></span>Sem contrato</span>`}
+            <span class="badge">Onboarding ${t.length?done+'/'+t.length:'—'}</span>
+          </div>
+        </div>
+      </a>
+      <div class="col" style="gap:6px;min-width:200px">
+        <label class="meta-sm">Etapa da jornada</label>
+        <select class="input" onchange="setStage('${c.id}',this.value)">${stageOpts}</select>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const clients=Data.activeClients();
+  // resumo por etapa
+  const counts=JORNADA.map(s=>({s, n:clients.filter(c=>c.stage===s).length}));
+  const semContrato=clients.filter(c=>!(c.dados&&c.dados.contrato)).length;
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <div class="eyebrow">Administrativo</div>
+      <h1 class="display" style="font-size:clamp(28px,5vw,44px)">Contratos & jornada</h1>
+      <div class="grid c4 stagger" style="margin-top:20px">
+        ${kpi("Clientes ativos", clients.length)}
+        ${kpi("Sem contrato", semContrato)}
+        ${counts.slice(0,2).map(c=>kpi(c.s, c.n)).join('')}
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="col stagger" style="gap:14px">
+        ${clients.length?clients.map(row).join(''):'<div class="empty card pad">Nenhum cliente ativo.</div>'}
+      </div>
+    </section>`;
+  U.reveal();
+}
+function kpi(k,v){return `<div class="card pad"><span class="meta-sm">${k}</span><div style="font-family:var(--serif);font-weight:700;font-size:32px;letter-spacing:-.03em;margin-top:4px">${v}</div></div>`;}
+async function setStage(id,val){ await Store.setClientStage(id,val); U.toast('Jornada atualizada'); render(); }
+
+U.boot(render, {manager:true});
+</script>
+</body>
+</html>

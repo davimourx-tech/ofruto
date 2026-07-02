@@ -304,6 +304,7 @@ const PALETTE = ["art-1","art-2","art-3","art-4","art-5","art-6"];
 function postFromDb(x){
   const o={ id:x.id, title:x.title, type:x.type, art:x.art||'art-1', embed:x.embed||'', cover:x.cover||'',
             caption:x.caption||'', note:x.note||'', status:x.status||'pendente', date:x.pub_date||'', pilar:x.pilar||'',
+            prod:x.prod||'', responsavel:x.responsavel||'',
             briefing:x.briefing||'', roteiro:x.roteiro||'', refs:x.refs||'', palpite:x.palpite||'' };
   if(x.slides) o.slides=x.slides;
   if(x.request_text) o.request={ scope:x.request_scope||'', text:x.request_text };
@@ -312,7 +313,7 @@ function postFromDb(x){
 function postToDb(p, projectId){
   return { id:p.id, project_id:projectId, title:p.title||'', type:p.type, art:p.art||'art-1', cover:p.cover||'',
            embed:p.embed||'', caption:p.caption||'', note:p.note||'', status:p.status||'pendente',
-           pub_date:p.date||null, slides:p.slides||0, pilar:p.pilar||'',
+           pub_date:p.date||null, slides:p.slides||0, pilar:p.pilar||'', prod:p.prod||'', responsavel:p.responsavel||'',
            briefing:p.briefing||'', roteiro:p.roteiro||'', refs:p.refs||'', palpite:p.palpite||'',
            request_scope:p.request?p.request.scope:'', request_text:p.request?p.request.text:'' };
 }
@@ -344,7 +345,7 @@ const Store = {
       DB.events = (eRes&&eRes.data)||[];
       DB.clients = clients.map(c=>({
         id:c.id, token:c.token, name:c.name, handle:c.handle||'', color:c.color||'art-1',
-        archived:!!c.archived, message:c.message||'', avatar:c.avatar||'', dados:c.dados||{},
+        archived:!!c.archived, message:c.message||'', avatar:c.avatar||'', dados:c.dados||{}, stage:c.stage||'',
         extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], finance:c.finance||{},
         tasks: tasks.filter(t=>t.client_id===c.id).map(t=>({ id:t.id, title:t.title||'', note:t.note||'', done:!!t.done, due:t.due||'', sort:t.sort||0 })),
         projects: projects.filter(p=>p.client_id===c.id).map(p=>({
@@ -360,7 +361,7 @@ const Store = {
   /* ---- escrita (otimista: muda a memória e grava no banco) ---- */
   async addClient({name,handle,projName}){
     const id=genId(), token=genToken(), color=PALETTE[Math.floor(Math.random()*6)];
-    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', avatar:'', dados:{}, extraction:{}, diagnostico:{}, matriz:[], finance:{}, tasks:[], projects:[] };
+    const c={ id, token, name, handle:handle||'@cliente', color, archived:false, message:'', avatar:'', dados:{}, stage:'', extraction:{}, diagnostico:{}, matriz:[], finance:{}, tasks:[], projects:[] };
     if(projName) c.projects.push({ id:genId(), name:projName, status:'breve', intro:'', posts:[] });
     DB.clients.unshift(c);
     if(this.sb){
@@ -401,6 +402,10 @@ const Store = {
     if(this.sb) await this.sb.from('clients').update({avatar:url}).eq('id',id); },
   async setDados(id,dados){ Data.client(id).dados=dados;
     if(this.sb) await this.sb.from('clients').update({dados}).eq('id',id); },
+  async setClientStage(id,stage){ Data.client(id).stage=stage;
+    if(this.sb) await this.sb.from('clients').update({stage}).eq('id',id); },
+  async setPostMeta(cid,pid,postId,patch){ const p=Data.post(cid,pid,postId); if(!p) return; Object.assign(p,patch);
+    if(this.sb) await this.sb.from('posts').update(patch).eq('id',postId); },
   async setExtraction(id, qid, val){
     const c=Data.client(id); c.extraction=c.extraction||{};
     const empty = val==null || val==='' || (Array.isArray(val)&&val.length===0);

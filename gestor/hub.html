@@ -130,11 +130,19 @@ function statusBreakdown(){
   return {ok,pend,adj,total,clients};
 }
 
+function monthly(){
+  const t=new Date(); const ym=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0');
+  let cri=0, apr=0;
+  Data.activeClients().forEach(c=>c.projects.forEach(p=>p.posts.forEach(post=>{
+    if((post.date||'').startsWith(ym)){ cri++; if(post.status==='aprovado') apr++; }
+  })));
+  return {cri,apr};
+}
 function renderKpis(){
-  const s = statusBreakdown();
+  const s = statusBreakdown(); const m = monthly();
   const items = [
     {k:"Clientes ativos", v:s.clients, ic:"user"},
-    {k:"Posts aprovados", v:s.ok, ic:"check"},
+    {k:"Aprovados / criados no mês", v:m.apr+"/"+m.cri, ic:"check"},
     {k:"Aguardando você", v:s.adj, ic:"clock"},
     {k:"Aguardando cliente", v:s.pend, ic:"eye"}
   ];
@@ -207,22 +215,22 @@ function renderDashboard(){
       <span class="meta-sm">onboarding ${x.d}/${x.total}</span></a>`).join('') || '<p class="meta-sm" style="padding-top:8px">Onboardings em dia.</p>';
 
   document.getElementById("dashboard").innerHTML=`
-    <div class="card pad">
-      <div class="row between"><strong>Financeiro</strong><span class="dim">${U.icon('check')}</span></div>
+    <div class="card pad hover">
+      <a class="row between" href="financeiro-geral.html"><strong>Financeiro ${U.icon('arrow')}</strong><span class="dim">${U.icon('check')}</span></a>
       <div style="font-family:var(--serif);font-weight:700;font-size:26px;margin-top:8px;letter-spacing:-.02em">${U.brl(f.aReceber)}</div>
       <span class="meta-sm">a receber · ${U.brl(f.recebidoMes)} recebido este mês</span>
       <div style="margin-top:8px">${finItems}</div>
     </div>
-    <div class="card pad">
-      <div class="row between"><strong>Operacional</strong><span class="dim">${U.icon('eye')}</span></div>
+    <div class="card pad hover">
+      <a class="row between" href="operacional.html"><strong>Operacional ${U.icon('arrow')}</strong><span class="dim">${U.icon('eye')}</span></a>
       <div class="row" style="gap:18px;margin-top:8px">
         <div><div style="font-family:var(--serif);font-weight:700;font-size:26px;color:var(--amber)">${o.voce}</div><span class="meta-sm">aguardam você</span></div>
         <div><div style="font-family:var(--serif);font-weight:700;font-size:26px;color:var(--blue)">${o.cliente}</div><span class="meta-sm">aguardam cliente</span></div>
       </div>
       <div style="margin-top:8px">${opItems}</div>
     </div>
-    <div class="card pad">
-      <div class="row between"><strong>Administrativo</strong><span class="dim">${U.icon('user')}</span></div>
+    <div class="card pad hover">
+      <a class="row between" href="administrativo.html"><strong>Administrativo ${U.icon('arrow')}</strong><span class="dim">${U.icon('user')}</span></a>
       <div class="row" style="gap:18px;margin-top:8px">
         <div><div style="font-family:var(--serif);font-weight:700;font-size:26px">${a.total}</div><span class="meta-sm">clientes ativos</span></div>
         <div><div style="font-family:var(--serif);font-weight:700;font-size:26px;color:var(--amber)">${a.semContrato.length}</div><span class="meta-sm">sem contrato</span></div>
