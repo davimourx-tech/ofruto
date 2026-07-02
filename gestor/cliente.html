@@ -217,7 +217,7 @@ function render(){
 }
 
 function onboardingSection(){
-  const tasks=(client.tasks||[]).slice().sort((a,b)=>a.sort-b.sort);
+  const tasks=(client.tasks||[]);
   const total=tasks.length, done=tasks.filter(t=>t.done).length;
   const pct=total?Math.round(done/total*100):0;
   return `
@@ -241,17 +241,33 @@ function onboardingSection(){
   </section>`;
 }
 function taskRow(t){
-  return `<div class="task-row">
-    <label class="row grow" style="gap:11px;cursor:pointer;min-width:0">
+  return `<div class="task-row" draggable="true" data-id="${t.id}"
+      ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropTask(event)" ondragend="dragEnd(event)">
+    <span class="drag" title="Arraste para reordenar" style="cursor:grab;color:var(--text-3);flex:none">${U.icon('grip')}</span>
+    <label class="row grow" style="gap:10px;cursor:pointer;min-width:0">
       <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}')">
       <span style="${t.done?'text-decoration:line-through;color:var(--text-3)':''}">${t.title}</span>
     </label>
-    <div class="row" style="gap:8px">
+    <div class="row" style="gap:6px">
+      <button class="btn-icon card" onclick="moveTask('${t.id}',-1)" title="Subir">${U.icon('up')}</button>
+      <button class="btn-icon card" onclick="moveTask('${t.id}',1)" title="Descer">${U.icon('down')}</button>
       <input class="input" type="date" value="${t.due||''}" onchange="setTaskDue('${t.id}',this.value)" style="width:auto;padding:6px 10px" title="Prazo">
       <button class="btn-icon card" onclick="delTask('${t.id}')" title="Excluir">${U.icon('trash')}</button>
     </div>
   </div>`;
 }
+let DRAG_ID=null;
+function dragStart(e){ DRAG_ID=e.currentTarget.dataset.id; e.dataTransfer.effectAllowed='move'; e.currentTarget.style.opacity='.45'; }
+function dragEnd(e){ e.currentTarget.style.opacity=''; }
+function dragOver(e){ e.preventDefault(); }
+async function dropTask(e){ e.preventDefault(); const target=e.currentTarget.dataset.id;
+  if(!DRAG_ID||DRAG_ID===target) return;
+  const t=client.tasks, from=t.findIndex(x=>x.id===DRAG_ID), to=t.findIndex(x=>x.id===target);
+  if(from<0||to<0) return; const [m]=t.splice(from,1); t.splice(to,0,m);
+  await Store.reorderTasks(CID); render(); }
+async function moveTask(id,dir){ const t=client.tasks, i=t.findIndex(x=>x.id===id), j=i+dir;
+  if(j<0||j>=t.length) return; const tmp=t[i]; t[i]=t[j]; t[j]=tmp;
+  await Store.reorderTasks(CID); render(); }
 async function seedOnboarding(){ await Store.seedOnboarding(CID); U.toast("Checklist criado"); render(); }
 async function addTask(){ const el=document.getElementById("newTask"); const v=el.value.trim();
   if(!v){ U.toast("Escreva a etapa"); return; } await Store.addTask(CID,v); render(); }

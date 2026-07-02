@@ -286,6 +286,9 @@ const U = {
       clapper:'<path d="M20.2 6 3 11l-.9-2.4c-.3-1.1.3-2.2 1.3-2.5l13.5-4c1.1-.3 2.2.3 2.5 1.3Z"/><path d="m6.2 5.3 3.1 3.9"/><path d="m12.4 3.4 3.1 4"/><path d="M3 11h18v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>',
       calendar:'<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9h18M8 2.5v4M16 2.5v4"/>',
       chart:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+      grip:'<circle cx="9" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="9" cy="18" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="18" r="1.3" fill="currentColor" stroke="none"/>',
+      up:'<path d="M6 15l6-6 6 6"/>',
+      down:'<path d="M6 9l6 6 6-6"/>',
       upload:'<path d="M12 16V4M7 9l5-5 5 5M5 20h14"/>',
       instagram:'<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.4" cy="6.6" r="1.1" fill="currentColor" stroke="none"/>',
       tiktok:'<path d="M12 4v12.6a3 3 0 1 1-2.2-2.9"/><path d="M12 4c.4 2.6 2.3 4.2 4.6 4.4"/>',
@@ -399,6 +402,10 @@ const Store = {
     if(this.sb) await this.sb.from('tasks').update({title}).eq('id',id); },
   async deleteTask(cid,id){ const c=Data.client(cid); const i=(c.tasks||[]).findIndex(x=>x.id===id); if(i>=0) c.tasks.splice(i,1);
     if(this.sb) await this.sb.from('tasks').delete().eq('id',id); },
+  /* reordena: grava o sort de cada tarefa conforme a ordem atual do array */
+  async reorderTasks(cid){ const c=Data.client(cid); const list=c.tasks||[];
+    list.forEach((t,i)=>t.sort=i);
+    if(this.sb){ for(const t of list){ await this.sb.from('tasks').update({sort:t.sort}).eq('id',t.id); } } },
   async setArchived(id,val){ Data.client(id).archived=val;
     if(this.sb) await this.sb.from('clients').update({archived:val}).eq('id',id); },
   async deleteClient(id){ const i=DB.clients.findIndex(c=>c.id===id); if(i>=0) DB.clients.splice(i,1);
