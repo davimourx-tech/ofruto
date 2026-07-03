@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Análise de conteúdo</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <nav class="topnav" id="crumbs"></nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/metrics.js"></script>
+<script>
+const CID=U.qs("c");
+let client, DATA=null, PERIOD=rangeOf('this');
+
+function rangeOf(preset){
+  const now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  const iso=d=>d.toISOString().slice(0,10);
+  if(preset==='this') return {preset, from:iso(new Date(y,m,1)), to:iso(new Date(y,m+1,0)), label:'Este mês'};
+  if(preset==='last') return {preset, from:iso(new Date(y,m-1,1)), to:iso(new Date(y,m,0)), label:'Mês passado'};
+  if(preset==='90d'){ const f=new Date(now); f.setDate(f.getDate()-90); return {preset, from:iso(f), to:iso(now), label:'Últimos 90 dias'}; }
+  if(preset==='year') return {preset, from:iso(new Date(y,0,1)), to:iso(now), label:'Este ano'};
+  return {preset:'all', from:null, to:null, label:'Todo o período'};
+}
+
+function render(){
+  document.getElementById("crumbs").innerHTML=`<a href="cliente.html?c=${CID}">← ${client.name}</a>`;
+  const acc=(client.dados&&client.dados.windsor)||'';
+  const saved=(client.dados&&client.dados.analise)||null;
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
+      <div class="eyebrow" style="margin:16px 0 0">Análise de conteúdo · Instagram</div>
+      <div class="row between wrap" style="gap:14px;margin-top:8px">
+        <div class="row" style="gap:18px">${U.avatarHtml(client,'lg')}
+          <div class="col"><h1 class="display" style="font-size:clamp(26px,4.5vw,40px)">${client.name}</h1>
+            <span class="muted">${PERIOD.label}${DATA?` · ${DATA.posts.length} posts`:''}</span></div></div>
+      </div>
+    </section>
+
+    <section class="section" style="max-width:960px">
+      <div class="card pad" style="background:var(--surface-2)">
+        <div class="row between wrap" style="gap:12px">
+          <div class="row wrap" style="gap:8px;align-items:center">
+            <input class="input" id="acc" style="width:auto;min-width:170px" value="${acc}" placeholder="Conta no Windsor (username)">
+            <select class="input select-bare" id="per" style="width:auto" onchange="setPeriod(this.value)">
+              <option value="this"${PERIOD.preset==='this'?' selected':''}>Este mês</option>
+              <option value="last"${PERIOD.preset==='last'?' selected':''}>Mês passado</option>
+              <option value="90d"${PERIOD.preset==='90d'?' selected':''}>Últimos 90 dias</option>
+              <option value="year"${PERIOD.preset==='year'?' selected':''}>Este ano</option>
+              <option value="all"${PERIOD.preset==='all'?' selected':''}>Todo o período</option>
+            </select>
+            <button class="btn btn-sm btn-primary" onclick="carregar()">${U.icon('chart')} Atualizar</button>
+          </div>
+          <a class="btn btn-sm card" href="relatorio.html?c=${CID}">Relatório mensal ${U.icon('arrow')}</a>
+        </div>
+        <p class="hint" style="margin-top:10px">Você (Davi) vê tudo aqui, ao vivo, a qualquer momento. O cliente só vê o que você <b>publicar</b> — e fica fixo.
+        ${saved?`<br>${U.icon('check')} Publicado pro cliente: <strong>${saved.label||''}</strong> · ${saved.posts?saved.posts.length:0} posts ${saved.generatedAt?'· '+new Date(saved.generatedAt).toLocaleDateString('pt-BR'):''}`:''}</p>
+      </div>
+    </section>
+
+    ${DATA?`<section class="section" style="max-width:960px">
+      <div class="card pad">
+        <div class="row between wrap" style="gap:10px;margin-bottom:12px">
+          <div class="eyebrow" style="margin:0">Resumo pro cliente (IA)</div>
+          <div class="row" style="gap:8px">
+            <button class="btn btn-sm btn-primary" id="genBtn" onclick="gerarResumo()">${U.icon('sparkle')} ${DATA.resumo?'Refazer':'Gerar'} resumo com IA</button>
+            <button class="btn btn-sm card" onclick="publicar()">${U.icon('eye')} Publicar pro cliente</button>
+          </div>
+        </div>
+        <textarea class="textarea" id="resumo" style="min-height:200px" placeholder="Clique em “Gerar resumo com IA” — o Claude escreve um resumo explicativo com os números reais e os posts de destaque. Você pode editar antes de publicar.">${DATA.resumo||''}</textarea>
+        <p class="hint" style="margin-top:8px">Esse texto é o que o cliente lê primeiro. Os cards de números e os posts de destaque vão junto automaticamente.</p>
+      </div>
+    </section>`:''}
+
+    <section class="section" style="max-width:960px">
+      <div class="eyebrow" style="margin-bottom:12px">${DATA?'Sua análise completa (só você vê)':''}</div>
+      <div id="dash">${DATA?'':'<div class="empty card pad">Escolha o período e clique em <b>Atualizar</b> para puxar os posts do Windsor.</div>'}</div>
+    </section>`;
+  if(DATA) Metrics.mount(document.getElementById('dash'), DATA);
+}
+
+async function gerarResumo(){
+  if(!DATA){ U.toast('Carregue os dados primeiro'); return; }
+  const btn=document.getElementById('genBtn'); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML=U.icon('sparkle')+' Gerando...';
+  try{
+    const totals=Metrics.totals(DATA.posts||[]);
+    const top=(DATA.posts||[]).slice().sort((a,b)=>(b.eng_rate||0)-(a.eng_rate||0));
+    const resumo=await Store.generateAnalise({ cid:CID, label:DATA.label, followers:DATA.followers, totals, posts:top });
+    DATA.resumo=resumo; document.getElementById('resumo').value=resumo; U.toast('Resumo gerado ✨');
+  }catch(e){ alert('Não deu pra gerar o resumo:\n\n'+e.message); }
+  btn.disabled=false; btn.innerHTML=old;
+}
+
+function setPeriod(p){ PERIOD=rangeOf(p); }
+
+async function carregar(){
+  const account=document.getElementById('acc').value.trim();
+  if(!account){ U.toast('Informe a conta no Windsor'); return; }
+  // salva o username no cliente
+  const dados=Object.assign({}, client.dados||{}, { windsor:account }); await Store.setDados(CID,dados); client.dados=dados;
+  U.toast('Puxando do Windsor...');
+  const dash=document.getElementById('dash'); if(dash) dash.innerHTML='<div class="empty card pad">Carregando posts e métricas…</div>';
+  try{
+    const [postsRes, totRes] = await Promise.all([
+      Store.fetchWindsorPosts({ account, date_from:PERIOD.from, date_to:PERIOD.to }),
+      Store.fetchWindsor({ account, date_from:PERIOD.from, date_to:PERIOD.to }).catch(()=>({metrics:{}}))
+    ]);
+    DATA={ account, label:PERIOD.label, from:PERIOD.from, to:PERIOD.to,
+      followers:(totRes.metrics&&totRes.metrics.seguidores_total)||null,
+      posts:postsRes.posts||[], generatedAt:new Date().toISOString() };
+    U.toast(`${DATA.posts.length} posts carregados ✅`);
+    render();
+  }catch(e){ alert('Não deu pra puxar:\n\n'+e.message); if(dash) dash.innerHTML='<div class="empty card pad">Erro ao carregar. Confira a conta e a chave.</div>'; }
+}
+
+async function publicar(){
+  if(!DATA){ U.toast('Carregue os dados primeiro'); return; }
+  const ta=document.getElementById('resumo'); if(ta) DATA.resumo=ta.value.trim();
+  if(!DATA.resumo && !confirm('Publicar sem o resumo escrito? O cliente vai ver só os números e os posts.')) return;
+  await Store.setAnalise(CID, DATA);
+  U.toast('Publicado pro cliente ✅'); render();
+}
+
+function start(){
+  client=Data.client(CID);
+  if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado.</div>'; return; }
+  render();
+}
+U.boot(start, {manager:true});
+</script>
+</body>
+</html>

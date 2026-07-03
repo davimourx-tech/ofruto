@@ -486,3 +486,27 @@ input[type=checkbox]{width:19px;height:19px;accent-color:var(--red);flex:none;cu
 @media (prefers-reduced-motion:reduce){
   *{animation:none !important;transition:none !important}
 }
+
+/* ---- Análise de conteúdo (métricas Instagram) ---- */
+.mkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.mkpi{background:var(--surface-2);border:1px solid var(--line);border-radius:var(--r);padding:16px 16px 14px;
+  display:flex;flex-direction:column;gap:3px}
+.mkpi-n{font-family:var(--serif);font-weight:700;font-size:30px;letter-spacing:-.03em;color:var(--text);line-height:1.05}
+.chip-n{margin-left:8px;opacity:.6;font-variant-numeric:tabular-nums}
+.mpost{display:flex;gap:16px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:16px;position:relative}
+.mpost:hover{border-color:var(--line-2)}
+.mpost-rank{position:absolute;top:12px;right:14px;font-family:var(--serif);font-weight:700;font-size:22px;color:var(--text-3)}
+.mpost-thumb{width:96px;height:96px;flex:none;border-radius:14px;background:var(--surface-3);
+  background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;color:var(--text-3)}
+.mpost-thumb.noimg .ic{width:28px;height:28px}
+.mpost-body{min-width:0;flex:1}
+.mpost-cap{font-size:13.5px;color:var(--text-2);line-height:1.5;margin:0}
+.mpost-stats{display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;color:var(--text-3);font-size:13px}
+.mpost-stats span{display:inline-flex;align-items:center;gap:5px;font-variant-numeric:tabular-nums}
+.mpost-stats .ic{width:15px;height:15px}
+@media (max-width:560px){
+  .mpost{gap:12px;padding:14px}
+  .mpost-thumb{width:64px;height:64px}
+  .mpost-rank{font-size:18px}
+}

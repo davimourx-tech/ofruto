@@ -71,6 +71,7 @@ function render(){
     </section>`:''}
 
     ${clientAgenda()}
+    ${clientMetrics()}
     ${clientReports()}
 
     <section class="section">
@@ -100,6 +101,16 @@ function clientAgenda(){
         <span class="meta-sm">${e.time?e.time+' · ':''}${LB[e.type]||'Evento'}${e.note?' · '+e.note:''}</span></div>
       </div></div>`; }).join('');
   return `<section class="section reveal"><div class="eyebrow">Sua agenda</div><div class="agenda">${rows}</div></section>`;
+}
+function clientMetrics(){
+  const a=(client.dados&&client.dados.analise)||null;
+  if(!a || !a.posts || !a.posts.length) return '';
+  return `<section class="section reveal"><div class="eyebrow">Seu desempenho</div>
+    <a class="card hover pad row between" href="metricas.html?c=${TOKEN}">
+      <div class="row" style="gap:12px">${U.icon('instagram')}
+        <div class="col"><strong>Análise de conteúdo</strong>
+          <span class="meta-sm">${a.label||''} · ${a.posts.length} posts</span></div></div>
+      ${U.icon('arrow')}</a></section>`;
 }
 function clientReports(){
   const MES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];

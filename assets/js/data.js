@@ -495,6 +495,44 @@ const Store = {
     if(!r.ok) throw new Error(data.error||'Erro ao puxar do Instagram.');
     return data;
   },
+  /* métricas REAIS via Windsor.ai (alcance, salvamentos, compartilhamentos, etc.) */
+  async fetchWindsor({ account, date_from, date_to }){
+    const r=await fetch('/api/windsor',{ method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ account, date_from, date_to }) });
+    let data; try{ data=await r.json(); }catch(e){ throw new Error('Função /api/windsor indisponível — publicou a pasta api/ no Vercel?'); }
+    if(!r.ok) throw new Error(data.error||'Erro ao puxar do Windsor.');
+    return data;   // { metrics:{...}, rows, account }
+  },
+  async windsorAccounts(){
+    const r=await fetch('/api/windsor',{ method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ accounts:true }) });
+    let data; try{ data=await r.json(); }catch(e){ throw new Error('Função /api/windsor indisponível.'); }
+    if(!r.ok) throw new Error(data.error||'Erro ao listar contas do Windsor.');
+    return data;   // { accounts:[...] }
+  },
+  /* métricas POR POST (para o painel de análise de conteúdo) */
+  async fetchWindsorPosts({ account, date_from, date_to }){
+    const r=await fetch('/api/windsor',{ method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ posts:true, account, date_from, date_to }) });
+    let data; try{ data=await r.json(); }catch(e){ throw new Error('Função /api/windsor indisponível — publicou a pasta api/ no Vercel?'); }
+    if(!r.ok) throw new Error(data.error||'Erro ao puxar os posts do Windsor.');
+    return data;   // { posts:[...], count, account }
+  },
+  /* gera o RESUMO do cliente (IA) a partir dos dados reais do Windsor */
+  async generateAnalise({ cid, label, followers, totals, posts }){
+    const c=Data.client(cid);
+    const r=await fetch('/api/analise',{ method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({ clientName:c.name, label, followers, totals, posts, diagnostico:c.diagnostico||{} }) });
+    let data; try{ data=await r.json(); }catch(e){ throw new Error('Função /api/analise indisponível — publicou a pasta api/ no Vercel?'); }
+    if(!r.ok) throw new Error(data.error||'Erro ao gerar o resumo.');
+    return data.resumo||'';
+  },
+  /* snapshot de análise publicado pro cliente (guardado em dados.analise) */
+  async setAnalise(cid, analise){
+    const c=Data.client(cid); const dados=Object.assign({}, c.dados||{}, { analise });
+    c.dados=dados;
+    if(this.sb) await this.sb.from('clients').update({ dados }).eq('id',cid);
+  },
 
   /* ---- agenda (eventos) ---- */
   async addEvent(e){
