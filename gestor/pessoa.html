@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Tarefas da pessoa</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <nav class="topnav"><a href="hub.html">← Hub</a><a href="equipe.html">Equipe</a></nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const NAME=decodeURIComponent(U.qs("name")||"");
+const CS=(window.APP_CONFIG&&APP_CONFIG.CONTENT_STATUS)||["Em processo","Pronto"];
+
+function statusSel(t){
+  const opts='<option value="">— status —</option>'+CS.map(s=>`<option ${t.post.prod===s?'selected':''}>${s}</option>`).join('');
+  return `<label class="col meta-sm" style="gap:4px">Status
+    <select class="input select-bare" style="padding:6px 10px" onchange="setStatus('${t.client.id}','${t.project.id}','${t.post.id}',this.value)">${opts}</select></label>`;
+}
+function respSel(t){
+  const names=Data.teamNames();
+  const opts='<option value="">— sem responsável —</option>'+names.map(n=>`<option ${t.post.responsavel===n?'selected':''}>${n}</option>`).join('');
+  return `<label class="col meta-sm" style="gap:4px">Responsável (repassar)
+    <select class="input select-bare" style="padding:6px 10px" onchange="reassign('${t.client.id}','${t.project.id}','${t.post.id}',this.value)">${opts}</select></label>`;
+}
+function taskRow(t){
+  const tp=TYPE[t.post.type]||{label:'',icon:'film'};
+  return `<div class="card pad">
+    <div class="row between wrap" style="gap:12px">
+      <a class="grow" style="min-width:220px" href="projeto.html?c=${t.client.id}&p=${t.project.id}">
+        <div class="row wrap" style="gap:8px;margin-bottom:6px">
+          <span class="badge">${U.icon(tp.icon)} ${tp.label}</span>
+          ${t.project.etapa?`<span class="badge">${t.project.etapa}</span>`:''}
+          ${t.post.prod?`<span class="badge is-ajustes"><span class="pip"></span>${t.post.prod}</span>`:''}
+        </div>
+        <strong style="font-size:16px">${t.post.title}</strong>
+        <div class="meta-sm" style="margin-top:3px">${t.client.name} · ${t.project.name}</div>
+      </a>
+      <div class="row wrap" style="gap:12px;align-items:end">
+        ${statusSel(t)} ${respSel(t)}
+        <a class="btn btn-sm card nowrap" href="projeto.html?c=${t.client.id}&p=${t.project.id}">Abrir ${U.icon('arrow')}</a>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const tasks=Data.tasksOf(NAME);
+  const func=Data.funcaoOf(NAME);
+  const byClient={};
+  tasks.forEach(t=>{ (byClient[t.client.id]=byClient[t.client.id]||{name:t.client.name,items:[]}).items.push(t); });
+  const groups=Object.values(byClient);
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <a class="meta-sm" href="hub.html">← Hub</a>
+      <div class="eyebrow" style="margin:16px 0 0">Tarefas da equipe</div>
+      <div class="row between wrap" style="gap:12px;margin-top:8px">
+        <div class="row" style="gap:14px">
+          <div class="avatar lg" style="background:var(--surface-3)">${U.initials(NAME||'?')}</div>
+          <div class="col"><h1 class="display" style="font-size:clamp(26px,4.5vw,40px)">${NAME||'Pessoa'}</h1>
+            <span class="muted">${func?func+' · ':''}${tasks.length} ${tasks.length===1?'conteúdo':'conteúdos'} sob responsabilidade</span></div>
+        </div>
+      </div>
+    </section>
+    <section class="section">
+      ${groups.length? groups.map(g=>`
+        <div style="margin-bottom:22px">
+          <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">${g.name}</div>
+          <div class="col" style="gap:12px">${g.items.map(taskRow).join('')}</div>
+        </div>`).join('')
+      : `<div class="empty card pad">Nada sob responsabilidade dessa pessoa agora.</div>`}
+    </section>`;
+  U.reveal();
+}
+
+async function setStatus(cid,pid,postId,val){ await Store.setPostMeta(cid,pid,postId,{prod:val}); U.toast('Status atualizado'); }
+async function reassign(cid,pid,postId,val){ await Store.setPostMeta(cid,pid,postId,{responsavel:val});
+  U.toast(val?('Repassado para '+val):'Responsável removido'); render(); }
+
+function start(){
+  if(!NAME){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Pessoa não informada. <a href="hub.html">Voltar</a></div>'; return; }
+  render();
+}
+U.boot(start, {manager:true});
+</script>
+</body>
+</html>

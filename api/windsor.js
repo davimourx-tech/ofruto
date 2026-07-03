@@ -80,44 +80,64 @@ module.exports = async (req, res) => {
     if(body.posts){
       const account = normAccount(body.account);
       const filter = account ? JSON.stringify([['account_name','eq', account]]) : null;
-      // OBS: filtro de data zera os insights de mídia -> puxamos tudo e filtramos por timestamp aqui.
-      const fields = 'media_id,media_type,media_product_type,media_caption,media_permalink,media_thumbnail_url,media_url,timestamp,media_reach,media_engagement,media_saved,media_shares,media_like_count,media_comments_count,media_views';
-      const r = await windsorGet(`/${connector}`, { api_key:key, fields, _renderer:'json', ...(filter?{filter}:{}) });
-      if(!r.ok){ res.status(502).json({ error:'Erro ao puxar os posts do Windsor.', status:r.status, detail:r.json }); return; }
-      let rows = Array.isArray(r.json.data) ? r.json.data : [];
-      if(body.date_from || body.date_to){
-        const from = body.date_from || '0000-01-01', to = body.date_to || '9999-12-31';
-        rows = rows.filter(x => { const d = (x.timestamp||'').slice(0,10); return d && d >= from && d <= to; });
-      }
-      const posts = rows.map(x => {
-        const reach = num(x.media_reach) || 0, eng = num(x.media_engagement) || 0;
+      const today = new Date().toISOString().slice(0,10);
+      const from = body.date_from || '2015-01-01';
+      const to   = body.date_to   || today;
+
+      // 1) INFO de todos os posts. IMPORTANTE: buscamos SEMPRE até hoje (date_to=today) porque
+      //    o Windsor retorna vazio em janelas totalmente no passado. Filtramos o período no código.
+      const infoFields = 'media_id,timestamp,media_type,media_product_type,media_caption,media_permalink,media_thumbnail_url,media_url,media_like_count,media_comments_count';
+      const info = await windsorGet(`/${connector}`, { api_key:key, fields:infoFields, _renderer:'json', date_from:from, date_to:today, ...(filter?{filter}:{}) });
+      if(!info.ok){ res.status(502).json({ error:'Erro ao puxar os posts do Windsor.', status:info.status, detail:info.json }); return; }
+      let infoRows = Array.isArray(info.json.data) ? info.json.data : [];
+      infoRows = infoRows.filter(x => { const d=(x.timestamp||'').slice(0,10); return d && d>=from && d<=to; });
+
+      // 2) INSIGHTS por post (alcance/engajamento) — só vêm dos posts já sincronizados; casa por media_id
+      const insFields = 'media_id,media_reach,media_engagement,media_saved,media_shares,media_views';
+      const ins = await windsorGet(`/${connector}`, { api_key:key, fields:insFields, _renderer:'json', ...(filter?{filter}:{}) });
+      const insMap = {};
+      if(ins.ok && Array.isArray(ins.json.data)) ins.json.data.forEach(r => { if(r.media_id) insMap[r.media_id] = r; });
+
+      const posts = infoRows.map(x => {
+        const ii = insMap[x.media_id] || {};
+        const reach = num(ii.media_reach), eng = num(ii.media_engagement);
+        const hasIns = reach != null;
         return {
           id: x.media_id, type: x.media_type || '', product: x.media_product_type || '',
           caption: x.media_caption || '', permalink: x.media_permalink || '',
           thumb: x.media_thumbnail_url || x.media_url || '', date: (x.timestamp||'').slice(0,10),
-          reach, engagement: eng, likes: num(x.media_like_count) || 0, comments: num(x.media_comments_count) || 0,
-          saved: num(x.media_saved) || 0, shares: num(x.media_shares) || 0, views: num(x.media_views) || 0,
-          eng_rate: reach ? +(((eng) / reach) * 100).toFixed(2) : 0
+          likes: num(x.media_like_count) || 0, comments: num(x.media_comments_count) || 0,
+          reach: reach != null ? reach : null, engagement: eng != null ? eng : null,
+          saved: num(ii.media_saved) || 0, shares: num(ii.media_shares) || 0, views: num(ii.media_views) || 0,
+          eng_rate: (hasIns && reach) ? +(((eng||0) / reach) * 100).toFixed(2) : null,
+          has_insights: hasIns
         };
       });
-      res.status(200).json({ connector, account: account||null, count: posts.length, posts });
+      posts.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+      res.status(200).json({
+        connector, account: account||null,
+        count: posts.length, with_insights: posts.filter(p=>p.has_insights).length, posts
+      });
       return;
     }
 
     // ---- métricas do período ----
+    // OBS/Meta: as métricas DIÁRIAS da conta só existem ~30 dias (o Instagram não guarda mais).
+    // Além disso, juntar vários campos de insight com date_from/date_to zera o retorno no Windsor.
+    // Solução robusta: usar date_preset (last_30d, que funciona) e filtrar o período no código.
     const account = normAccount(body.account);
-    const dateParams = {};
-    if(body.date_from) dateParams.date_from = body.date_from;
-    if(body.date_to)   dateParams.date_to   = body.date_to;
-    if(!body.date_from && !body.date_to) dateParams.date_preset = body.date_preset || 'last_30d';
+    const from = body.date_from || null;
+    const to   = body.date_to   || null;
     const filter = account ? JSON.stringify([['account_name','eq', account]]) : null;
 
-    // consulta 1: diários
+    // consulta 1: diários — preset confiável, depois filtra
     const daily = await windsorGet(`/${connector}`, {
-      api_key:key, fields:DAILY_FIELDS, _renderer:'json', ...dateParams, ...(filter?{filter}:{})
+      api_key:key, fields:DAILY_FIELDS, _renderer:'json', date_preset:'last_30d', ...(filter?{filter}:{})
     });
     if(!daily.ok){ res.status(502).json({ error:'Erro ao consultar o Windsor (diário). Confira a chave e o conector.', status:daily.status, detail:daily.json }); return; }
     let rows = Array.isArray(daily.json.data) ? daily.json.data : [];
+    if(from || to) rows = rows.filter(r => { const d=(r.date||'').slice(0,10); return d && (!from||d>=from) && (!to||d<=to); });
+    const daysCovered = rows.length;
 
     // consulta 2: total do perfil (valor de hoje — followers_count, media_count)
     const snap = await windsorGet(`/${connector}`, {
@@ -143,9 +163,9 @@ module.exports = async (req, res) => {
     // posts_publicados e visitas_perfil: Instagram não entrega histórico confiável -> ficam manuais
 
     res.status(200).json({
-      connector, account: account||null, rows: rows.length,
+      connector, account: account||null, rows: rows.length, days_covered: daysCovered,
       metrics,
-      note: 'seguidores_total = valor de hoje (Instagram não dá histórico). posts/visitas ao perfil: preencha à mão.'
+      note: 'Métricas diárias da conta só existem ~30 dias (limite do Instagram). Períodos mais antigos que isso vêm parciais/vazios. seguidores_total = valor de hoje.'
     });
   }catch(e){
     res.status(500).json({ error:'Falha inesperada.', detail:String(e) });

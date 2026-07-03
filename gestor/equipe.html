@@ -24,6 +24,7 @@
 let NEW_PHOTO='';
 function v(id){ return document.getElementById(id).value; }
 
+function funcOpts(cur){ return `<option value="">— função —</option>`+FUNCOES.map(f=>`<option ${cur===f?'selected':''}>${f}</option>`).join(''); }
 function memberRow(m){
   const av = m.photo
     ? `<div class="avatar" style="background-image:url('${m.photo}');background-size:cover;background-position:center"></div>`
@@ -31,9 +32,12 @@ function memberRow(m){
   return `<div class="card pad row between wrap" style="gap:14px">
     <div class="row" style="gap:14px;min-width:200px">${av}
       <div class="col"><strong>${m.name}</strong>
-        <span class="badge ${m.role==='gestor'?'is-aprovado':''}">${m.role==='gestor'?'Gestor':'Operacional'}</span></div></div>
+        <div class="row" style="gap:6px;margin-top:4px">
+          <span class="badge ${m.role==='gestor'?'is-aprovado':''}">${m.role==='gestor'?'Gestor':'Operacional'}</span>
+          ${m.funcao?`<span class="badge">${m.funcao}</span>`:''}</div></div></div>
     <div class="row wrap" style="gap:8px">
       <input class="input" style="width:auto" type="text" value="${(m.pass||'').replace(/"/g,'&quot;')}" placeholder="senha" onchange="upd('${m.id}','pass',this.value)">
+      <select class="input" style="width:auto" onchange="upd('${m.id}','funcao',this.value)">${funcOpts(m.funcao)}</select>
       <select class="input" style="width:auto" onchange="upd('${m.id}','role',this.value)">
         <option value="operacional" ${m.role!=='gestor'?'selected':''}>Operacional</option>
         <option value="gestor" ${m.role==='gestor'?'selected':''}>Gestor</option></select>
@@ -58,11 +62,13 @@ function render(){
           <label class="btn btn-sm card" for="np-file" id="np-uplabel" style="cursor:pointer"></label>
           <input type="file" id="np-file" accept="image/*" class="hidden" onchange="photoUp(this)">
         </div>
-        <div class="grid c3">
+        <div class="grid c2">
           <div class="field"><label>Nome</label><input class="input" id="t-name" placeholder="Nome da pessoa"></div>
-          <div class="field"><label>Senha</label><input class="input" id="t-pass" placeholder="senha de acesso"></div>
-          <div class="field"><label>Função</label>
-            <select class="input" id="t-role"><option value="operacional">Operacional</option><option value="gestor">Gestor</option></select></div>
+          <div class="field"><label>Senha de acesso</label><input class="input" id="t-pass" placeholder="senha"></div>
+          <div class="field"><label>Função (profissão)</label>
+            <select class="input" id="t-funcao"><option value="">— função —</option></select></div>
+          <div class="field"><label>Nível de acesso</label>
+            <select class="input" id="t-role"><option value="operacional">Operacional (vê só as tarefas)</option><option value="gestor">Gestor (vê tudo)</option></select></div>
         </div>
         <button class="btn btn-primary" onclick="add()">${U.icon('plus')} Adicionar</button>
       </div>
@@ -76,6 +82,7 @@ function render(){
       <p class="hint" style="margin-top:14px">Você (${MANAGER.name}) é o gestor principal — a senha do gestor fica no config.js.</p>
     </section>`;
   document.getElementById("np-uplabel").innerHTML=U.icon("upload")+" Foto";
+  document.getElementById("t-funcao").innerHTML='<option value="">— função —</option>'+FUNCOES.map(f=>`<option>${f}</option>`).join('');
 }
 
 async function photoUp(input){ const f=input.files[0]; if(!f) return;

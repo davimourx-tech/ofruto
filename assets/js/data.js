@@ -43,6 +43,8 @@ const TYPE = {
   "stories":   { label: "Stories",     ratio: "ratio-9-16", icon: "chat" },
   "documento": { label: "Documento",   ratio: "ratio-4-5",  icon: "file" }
 };
+const FUNCOES = (window.APP_CONFIG && APP_CONFIG.FUNCOES) || ["Social media","Editor de vídeo","Designer","Cinegrafista"];
+const TASK_DONE = ["Pronto","Postado"];
 const WEEKDAYS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 const MONTHS_FULL = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 
@@ -198,6 +200,33 @@ const Data = {
   team: () => DB.team || [],
   teamNames: () => { const arr=[MANAGER.name].concat((DB.team||[]).map(m=>m.name)).filter(Boolean);
     return arr.filter((v,i)=>arr.indexOf(v)===i); },
+  teamByName: (name) => (DB.team||[]).find(m=>m.name===name) || null,
+  funcaoOf: (name) => { const m=Data.teamByName(name); return m ? (m.funcao||'') : (name===MANAGER.name?'Gestor':''); },
+  /* todos os conteúdos atribuídos a uma pessoa (nome do responsável) */
+  tasksOf: (name) => {
+    const out=[];
+    (DB.clients||[]).forEach(c=>{ if(c.archived) return;
+      c.projects.forEach(p=>{ if(p.kind==='entrega') return;
+        p.posts.forEach(post=>{ if(post.responsavel && post.responsavel===name)
+          out.push({ client:c, project:p, post }); });
+      });
+    });
+    return out;
+  },
+  /* visão da equipe pro gestor: por pessoa + itens em produção sem responsável */
+  assignments: () => {
+    const byPerson={}, unassigned=[];
+    (DB.clients||[]).forEach(c=>{ if(c.archived) return;
+      c.projects.forEach(p=>{ if(p.kind==='entrega') return;
+        p.posts.forEach(post=>{
+          if(TASK_DONE.includes(post.prod)) return;      // já concluído
+          if(post.responsavel){ (byPerson[post.responsavel]=byPerson[post.responsavel]||[]).push({client:c,project:p,post}); }
+          else if(post.prod){ unassigned.push({client:c,project:p,post}); }  // em produção e sem dono
+        });
+      });
+    });
+    return { byPerson, unassigned };
+  },
   project: (cid, pid) => {
     const c = Data.client(cid); return c ? c.projects.find(p => p.id === pid) : null;
   },
@@ -480,21 +509,6 @@ const Store = {
   /* ---- relatórios mensais ---- */
   async setReports(cid, reports){ Data.client(cid).reports=reports;
     if(this.sb) await this.sb.from('clients').update({ reports }).eq('id',cid); },
-  async generateReport(cid, month, handle, metrics){
-    const c=Data.client(cid);
-    const r=await fetch('/api/relatorio',{ method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ clientName:c.name, handle, month, metrics, diagnostico:c.diagnostico||{} }) });
-    let data; try{ data=await r.json(); }catch(e){ throw new Error('A função /api está publicada no Vercel?'); }
-    if(!r.ok) throw new Error(data.error||'Erro ao gerar o relatório.');
-    return data.analysis||'';
-  },
-  async fetchInstagram(handle){
-    const r=await fetch('/api/instagram',{ method:'POST', headers:{'content-type':'application/json'},
-      body: JSON.stringify({ handle }) });
-    let data; try{ data=await r.json(); }catch(e){ throw new Error('Função /api/instagram indisponível.'); }
-    if(!r.ok) throw new Error(data.error||'Erro ao puxar do Instagram.');
-    return data;
-  },
   /* métricas REAIS via Windsor.ai (alcance, salvamentos, compartilhamentos, etc.) */
   async fetchWindsor({ account, date_from, date_to }){
     const r=await fetch('/api/windsor',{ method:'POST', headers:{'content-type':'application/json'},
@@ -547,12 +561,15 @@ const Store = {
     if(this.sb) await this.sb.from('events').delete().eq('id',id); },
 
   /* ---- equipe (login por pessoa) ---- */
-  async addTeam({name,photo,pass,role}){
-    const m={ id:genId(), name:name||'Sem nome', photo:photo||'', pass:pass||'', role:role||'operacional' };
+  async addTeam({name,photo,pass,role,funcao}){
+    const m={ id:genId(), name:name||'Sem nome', photo:photo||'', pass:pass||'', role:role||'operacional', funcao:funcao||'' };
     DB.team=DB.team||[]; DB.team.push(m);
     if(this.sb) await this.sb.from('team').insert(m);
     return m;
   },
+  /* pessoa concluiu a parte dela: sai como responsável (o gestor repassa) */
+  async concludePart(cid,pid,postId){ const p=Data.post(cid,pid,postId); if(!p) return; p.responsavel='';
+    if(this.sb) await this.sb.from('posts').update({ responsavel:'' }).eq('id',postId); },
   async updateTeam(id,patch){ const m=(DB.team||[]).find(x=>x.id===id); if(!m) return; Object.assign(m,patch);
     if(this.sb) await this.sb.from('team').update(patch).eq('id',id); },
   async deleteTeam(id){ const i=(DB.team||[]).findIndex(x=>x.id===id); if(i>=0) DB.team.splice(i,1);
@@ -658,7 +675,7 @@ const Auth = {
     const u=this.user();
     const base = location.pathname.includes('/gestor/') ? '../index.html' : 'index.html';
     if(!u){ location.replace(base); return false; }
-    if(need==='gestor' && u.role!=='gestor'){ location.replace('operacional.html'); return false; }
+    if(need==='gestor' && u.role!=='gestor'){ location.replace('minhas-tarefas.html'); return false; }
     return true;
   }
 };
@@ -764,10 +781,58 @@ function paintBrand(){
     if(!el.dataset.brand){ el.innerHTML = VERIFIED_SVG; el.dataset.brand="1"; }
   });
 }
-if(document.readyState!=="loading") paintBrand();
-else document.addEventListener("DOMContentLoaded", paintBrand);
+
+/* barra de navegação inferior (estilo app) — injetada conforme papel/seção */
+U.appNav = function(){
+  if(document.querySelector('.tabbar')) return;
+  const path = location.pathname;
+  const file = (path.split('/').pop() || 'index.html');
+  let tabs = [];
+  if(path.includes('/cliente/')){
+    const tok = U.qs('c') || '';
+    const wa = (window.MANAGER && MANAGER.whatsapp) || '';
+    tabs = [
+      { href:`index.html?c=${tok}`, icon:'grid', label:'Início', match:['index.html'] },
+      wa ? { href:`https://wa.me/${wa}`, icon:'whats', label:'Falar', ext:true } : null
+    ].filter(Boolean);
+  } else if(path.includes('/gestor/')){
+    if(U.isGestor()){
+      tabs = [
+        { href:'hub.html', icon:'grid', label:'Hub', match:['hub.html'] },
+        { href:'minhas-tarefas.html', icon:'check', label:'Tarefas', match:['minhas-tarefas.html','tarefa.html','pessoa.html'] },
+        { href:'agenda.html', icon:'calendar', label:'Agenda', match:['agenda.html'] },
+        { href:'equipe.html', icon:'user', label:'Equipe', match:['equipe.html'] },
+        { logout:true, icon:'back', label:'Sair' }
+      ];
+    } else {
+      tabs = [
+        { href:'minhas-tarefas.html', icon:'check', label:'Tarefas', match:['minhas-tarefas.html','tarefa.html'] },
+        { href:'operacional.html', icon:'eye', label:'Clientes', match:['operacional.html','operacional-cliente.html','projeto.html'] },
+        { logout:true, icon:'back', label:'Sair' }
+      ];
+    }
+  } else { return; }   // login/raiz: sem tab bar
+  if(!tabs.length) return;
+  const nav = document.createElement('nav'); nav.className='tabbar';
+  nav.innerHTML = '<div class="inner">'+tabs.map(t=>{
+    const on = t.match && t.match.includes(file);
+    if(t.logout) return `<a href="#" onclick="Auth.logout();return false" class="">${U.icon(t.icon)}<span>${t.label}</span></a>`;
+    const ext = t.ext ? ' target="_blank" rel="noopener"' : '';
+    return `<a href="${t.href}"${ext} class="${on?'on':''}">${U.icon(t.icon)}<span>${t.label}</span></a>`;
+  }).join('')+'</div>';
+  document.body.appendChild(nav);
+  document.body.classList.add('has-tabbar');
+};
+
+function initChrome(){ try{ paintBrand(); }catch(e){} try{ U.appNav(); }catch(e){} }
+if(document.readyState!=="loading") initChrome();
+else document.addEventListener("DOMContentLoaded", initChrome);
 
 /* expor globais */
+/* href da "home" conforme o papel: gestor -> hub, operacional -> minhas tarefas */
+U.homeHref = function(){ const u=Auth.user&&Auth.user(); return (u&&u.role==='gestor') ? 'hub.html' : 'minhas-tarefas.html'; };
+U.isGestor = function(){ const u=Auth.user&&Auth.user(); return !!(u&&u.role==='gestor'); };
+
 window.DB=DB; window.Data=Data; window.U=U; window.Store=Store; window.Auth=Auth;
-window.STATUS=STATUS; window.TYPE=TYPE; window.MANAGER=MANAGER;
+window.STATUS=STATUS; window.TYPE=TYPE; window.MANAGER=MANAGER; window.FUNCOES=FUNCOES;
 window.WEEKDAYS=WEEKDAYS; window.MONTHS_FULL=MONTHS_FULL;

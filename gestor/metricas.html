@@ -18,6 +18,7 @@
 <main class="wrap pagepad" id="root"></main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/data.js"></script>
 <script src="../assets/js/metrics.js"></script>
@@ -64,10 +65,8 @@ function render(){
             </select>
             <button class="btn btn-sm btn-primary" onclick="carregar()">${U.icon('chart')} Atualizar</button>
           </div>
-          <a class="btn btn-sm card" href="relatorio.html?c=${CID}">Relatório mensal ${U.icon('arrow')}</a>
         </div>
-        <p class="hint" style="margin-top:10px">Você (Davi) vê tudo aqui, ao vivo, a qualquer momento. O cliente só vê o que você <b>publicar</b> — e fica fixo.
-        ${saved?`<br>${U.icon('check')} Publicado pro cliente: <strong>${saved.label||''}</strong> · ${saved.posts?saved.posts.length:0} posts ${saved.generatedAt?'· '+new Date(saved.generatedAt).toLocaleDateString('pt-BR'):''}`:''}</p>
+        ${saved?`<p class="hint" style="margin-top:10px">${U.icon('check')} Publicado pro cliente: <strong>${saved.label||''}</strong> · ${saved.posts?saved.posts.length:0} posts · ${saved.generatedAt?new Date(saved.generatedAt).toLocaleDateString('pt-BR'):''}</p>`:''}
       </div>
     </section>
 
@@ -86,7 +85,7 @@ function render(){
     </section>`:''}
 
     <section class="section" style="max-width:960px">
-      <div class="eyebrow" style="margin-bottom:12px">${DATA?'Sua análise completa (só você vê)':''}</div>
+      ${DATA?'<div class="eyebrow" style="margin-bottom:12px">Todos os posts do período</div>':''}
       <div id="dash">${DATA?'':'<div class="empty card pad">Escolha o período e clique em <b>Atualizar</b> para puxar os posts do Windsor.</div>'}</div>
     </section>`;
   if(DATA) Metrics.mount(document.getElementById('dash'), DATA);
@@ -96,8 +95,8 @@ async function gerarResumo(){
   if(!DATA){ U.toast('Carregue os dados primeiro'); return; }
   const btn=document.getElementById('genBtn'); btn.disabled=true; const old=btn.innerHTML; btn.innerHTML=U.icon('sparkle')+' Gerando...';
   try{
-    const totals=Metrics.totals(DATA.posts||[]);
-    const top=(DATA.posts||[]).slice().sort((a,b)=>(b.eng_rate||0)-(a.eng_rate||0));
+    const totals=Metrics.kpiData();
+    const top=(DATA.posts||[]).slice().sort((a,b)=>((b.eng_rate==null?-1:b.eng_rate))-((a.eng_rate==null?-1:a.eng_rate))||((b.likes||0)-(a.likes||0)));
     const resumo=await Store.generateAnalise({ cid:CID, label:DATA.label, followers:DATA.followers, totals, posts:top });
     DATA.resumo=resumo; document.getElementById('resumo').value=resumo; U.toast('Resumo gerado ✨');
   }catch(e){ alert('Não deu pra gerar o resumo:\n\n'+e.message); }
@@ -118,10 +117,13 @@ async function carregar(){
       Store.fetchWindsorPosts({ account, date_from:PERIOD.from, date_to:PERIOD.to }),
       Store.fetchWindsor({ account, date_from:PERIOD.from, date_to:PERIOD.to }).catch(()=>({metrics:{}}))
     ]);
+    const m=totRes.metrics||{};
     DATA={ account, label:PERIOD.label, from:PERIOD.from, to:PERIOD.to,
-      followers:(totRes.metrics&&totRes.metrics.seguidores_total)||null,
+      followers:(m.seguidores_total!=null?m.seguidores_total:null),
+      kpis:{ reach:m.alcance||0, interactions:m.interacoes||0, saved:m.salvamentos||0, shares:m.compartilhamentos||0, views:m.views||0, followers_gained:(m.seguidores_ganhos!=null?m.seguidores_ganhos:null) },
       posts:postsRes.posts||[], generatedAt:new Date().toISOString() };
-    U.toast(`${DATA.posts.length} posts carregados ✅`);
+    const semIns=(postsRes.posts||[]).length-(postsRes.with_insights||0);
+    U.toast(`${DATA.posts.length} posts carregados ✅`+(semIns>0?` (${postsRes.with_insights} com alcance)`:''));
     render();
   }catch(e){ alert('Não deu pra puxar:\n\n'+e.message); if(dash) dash.innerHTML='<div class="empty card pad">Erro ao carregar. Confira a conta e a chave.</div>'; }
 }

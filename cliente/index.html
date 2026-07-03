@@ -53,11 +53,18 @@ function render(){
   const first=client.name.split(" ")[0];
   document.getElementById("who").textContent=client.handle;
   const visible=client.projects;
+  const totalPosts=visible.reduce((a,p)=>a+p.posts.length,0);
+  const aprovados=visible.reduce((a,p)=>a+p.posts.filter(x=>x.status==='aprovado').length,0);
   document.getElementById("root").innerHTML=`
     <section class="hello reveal">
       <div class="wave">👋</div>
       <h1 class="display" style="margin-top:10px">Oi, ${first}.<br><span style="color:var(--text-2);font-weight:400">${cap(U.greet())}!</span></h1>
       <p class="lead" style="margin-top:14px">Qual projeto vamos visualizar hoje?</p>
+      <div class="statrow" style="margin-top:20px">
+        <div><div class="n">${visible.length}</div><div class="l">Projetos</div></div>
+        <div><div class="n">${totalPosts}</div><div class="l">Conteúdos</div></div>
+        <div><div class="n">${aprovados}</div><div class="l">Aprovados</div></div>
+      </div>
     </section>
 
     ${client.message?`<section class="section reveal">
@@ -72,7 +79,6 @@ function render(){
 
     ${clientAgenda()}
     ${clientMetrics()}
-    ${clientReports()}
 
     <section class="section">
       <div class="eyebrow">Seus projetos</div>
@@ -111,16 +117,6 @@ function clientMetrics(){
         <div class="col"><strong>Análise de conteúdo</strong>
           <span class="meta-sm">${a.label||''} · ${a.posts.length} posts</span></div></div>
       ${U.icon('arrow')}</a></section>`;
-}
-function clientReports(){
-  const MES=["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
-  const rs=(client.reports||[]).filter(r=>r.published).sort((a,b)=>b.month.localeCompare(a.month));
-  if(!rs.length) return '';
-  const cards=rs.map(r=>{ const [y,m]=r.month.split('-');
-    return `<a class="card hover pad row between" href="relatorio.html?c=${TOKEN}&m=${r.month}">
-      <div class="row" style="gap:12px">${U.icon('chart')}<strong style="text-transform:capitalize">${MES[Number(m)-1]} ${y}</strong></div>
-      ${U.icon('arrow')}</a>`; }).join('');
-  return `<section class="section reveal"><div class="eyebrow">Seus relatórios</div><div class="col" style="gap:10px">${cards}</div></section>`;
 }
 
 function start(){

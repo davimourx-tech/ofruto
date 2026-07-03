@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Minhas tarefas</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" id="homeLink"><span class="dot"></span> oFruto <small id="rolelbl">equipe</small></a>
+    <nav class="topnav">
+      <a href="operacional.html">Clientes</a>
+      <a href="#" onclick="Auth.logout();return false">Sair</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap pagepad" id="root"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+const CS=(window.APP_CONFIG&&APP_CONFIG.CONTENT_STATUS)||["Em processo","Pronto"];
+let USER;
+
+function statusSelect(t){
+  const opts='<option value="">— status —</option>'+CS.map(s=>`<option ${t.post.prod===s?'selected':''}>${s}</option>`).join('');
+  return `<select class="input select-bare" style="padding:6px 10px" onchange="setStatus('${t.client.id}','${t.project.id}','${t.post.id}',this.value)">${opts}</select>`;
+}
+function taskRow(t){
+  const tp=TYPE[t.post.type]||{label:'',icon:'film'};
+  const prazo=(t.project.prazo_inicio||t.project.prazo_fim)
+    ? `${t.project.prazo_inicio?U.fmtDate(t.project.prazo_inicio):'—'} → ${t.project.prazo_fim?U.fmtDate(t.project.prazo_fim):'—'}` : '';
+  return `<div class="card pad">
+    <div class="row between wrap" style="gap:12px">
+      <a class="grow" style="min-width:220px;cursor:pointer" href="tarefa.html?c=${t.client.id}&p=${t.project.id}&post=${t.post.id}">
+        <div class="row wrap" style="gap:8px;margin-bottom:6px">
+          <span class="badge">${U.icon(tp.icon)} ${tp.label}</span>
+          ${t.project.etapa?`<span class="badge">${t.project.etapa}</span>`:''}
+          ${t.post.prod?`<span class="badge is-ajustes"><span class="pip"></span>${t.post.prod}</span>`:''}
+        </div>
+        <strong style="font-size:16px">${t.post.title}</strong>
+        <div class="meta-sm" style="margin-top:3px">${t.client.name} · ${t.project.name}${prazo?` · ${U.icon('calendar')} ${prazo}`:''}</div>
+      </a>
+      <div class="row wrap" style="gap:8px;align-items:center">
+        ${statusSelect(t)}
+        <a class="btn btn-sm card nowrap" href="tarefa.html?c=${t.client.id}&p=${t.project.id}&post=${t.post.id}">Abrir ${U.icon('arrow')}</a>
+        <button class="btn btn-sm btn-primary nowrap" onclick="concluir('${t.client.id}','${t.project.id}','${t.post.id}')">${U.icon('check')} Concluí</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function render(){
+  const tasks=Data.tasksOf(USER.name);
+  const nome=USER.name.split(' ')[0];
+  const func=Data.funcaoOf(USER.name);
+  // agrupa por cliente
+  const byClient={};
+  tasks.forEach(t=>{ (byClient[t.client.id]=byClient[t.client.id]||{name:t.client.name,items:[]}).items.push(t); });
+  const groups=Object.values(byClient);
+  const prontos=tasks.filter(t=>["Pronto","Postado"].includes(t.post.prod)).length;
+  document.getElementById("root").innerHTML=`
+    <section class="section">
+      <div class="eyebrow">Minhas tarefas</div>
+      <h1 class="display" style="font-size:clamp(28px,5vw,44px)">${U.greet().charAt(0).toUpperCase()+U.greet().slice(1)}, ${nome}.</h1>
+      <p class="lead" style="margin-top:10px">${func?func+' · ':''}Atualize o status e, ao terminar sua parte, toque em <strong>Concluí</strong>.</p>
+      <div class="statrow" style="margin-top:20px">
+        <div><div class="n">${tasks.length}</div><div class="l">Conteúdos</div></div>
+        <div><div class="n">${groups.length}</div><div class="l">Clientes</div></div>
+        <div><div class="n">${prontos}</div><div class="l">Prontos</div></div>
+      </div>
+    </section>
+    <section class="section">
+      ${groups.length? groups.map(g=>`
+        <div style="margin-bottom:22px">
+          <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">${g.name}</div>
+          <div class="col" style="gap:12px">${g.items.map(taskRow).join('')}</div>
+        </div>`).join('')
+      : `<div class="empty card pad">${U.icon('check')}<br>Nada pendente pra você agora. 🎉</div>`}
+    </section>`;
+  U.reveal();
+}
+
+async function setStatus(cid,pid,postId,val){ await Store.setPostMeta(cid,pid,postId,{prod:val}); U.toast('Status atualizado'); }
+async function concluir(cid,pid,postId){
+  if(!confirm('Concluir sua parte? O item sai das suas tarefas e volta pro gestor repassar.')) return;
+  await Store.concludePart(cid,pid,postId); U.toast('Parte concluída ✅'); render();
+}
+
+function start(){
+  USER=Auth.user();
+  document.getElementById("homeLink").href=U.homeHref();
+  document.getElementById("rolelbl").textContent = U.isGestor()?'gestor':(Data.funcaoOf(USER.name)||'equipe');
+  render();
+}
+U.boot(start, {op:true});
+</script>
+</body>
+</html>

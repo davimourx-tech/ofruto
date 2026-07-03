@@ -16,6 +16,7 @@
     </a>
     <nav class="topnav">
       <a href="hub.html" class="active">Hub</a>
+      <a href="minhas-tarefas.html">Tarefas</a>
       <a href="agenda.html">Agenda</a>
       <a href="equipe.html">Equipe</a>
       <a href="#" onclick="Auth.logout();return false">Sair</a>
@@ -46,6 +47,15 @@
   <section class="section">
     <div class="eyebrow">Painel</div>
     <div class="grid c3 stagger" id="dashboard"></div>
+  </section>
+
+  <!-- O que temos pra fazer (equipe) -->
+  <section class="section">
+    <div class="row between" style="margin-bottom:14px">
+      <div class="eyebrow" style="margin:0">O que temos pra fazer</div>
+      <a class="btn btn-sm card" href="equipe.html">Ver equipe</a>
+    </div>
+    <div id="teamboard"></div>
   </section>
 
   <!-- Clientes ativos -->
@@ -141,20 +151,13 @@ function monthly(){
 }
 function renderKpis(){
   const s = statusBreakdown(); const m = monthly();
-  const items = [
-    {k:"Clientes ativos", v:s.clients, ic:"user"},
-    {k:"Aprovados / criados no mês", v:m.apr+"/"+m.cri, ic:"check"},
-    {k:"Aguardando você", v:s.adj, ic:"clock"},
-    {k:"Aguardando cliente", v:s.pend, ic:"eye"}
-  ];
-  document.getElementById("kpis").innerHTML = items.map(i=>`
-    <div class="card pad">
-      <div class="row between">
-        <span class="meta-sm">${i.k}</span>
-        <span class="dim">${U.icon(i.ic)}</span>
-      </div>
-      <div style="font-family:var(--serif);font-weight:700;font-size:40px;margin-top:6px;color:var(--text);letter-spacing:-.03em">${i.v}</div>
-    </div>`).join("");
+  const el = document.getElementById("kpis"); el.className = "";
+  el.innerHTML = `<div class="statrow">
+    <div><div class="n">${s.clients}</div><div class="l">Clientes ativos</div></div>
+    <div><div class="n">${m.apr}/${m.cri}</div><div class="l">Aprovados no mês</div></div>
+    <div><div class="n">${s.adj}</div><div class="l">Aguardando você</div></div>
+    <div><div class="n">${s.pend}</div><div class="l">Aguardando cliente</div></div>
+  </div>`;
 }
 
 /* ---- Painel: financeiro / operacional / administrativo ---- */
@@ -277,9 +280,35 @@ function clientCard(c){
   </div>`;
 }
 
+function renderTeam(){
+  const board=document.getElementById('teamboard');
+  const a=Data.assignments();
+  const people=Object.keys(a.byPerson).sort();
+  if(!people.length && !a.unassigned.length){ board.innerHTML='<div class="empty card pad">Nada em produção no momento.</div>'; return; }
+  const item=(t,href)=>`<a class="row between" href="${href}" style="gap:8px;padding:6px 0;border-top:1px solid var(--line)">
+      <span style="min-width:0"><strong style="font-size:13px">${t.post.title}</strong>
+        <div class="meta-sm">${t.client.name}${t.post.prod?' · '+t.post.prod:''}</div></span>${U.icon('arrow')}</a>`;
+  const unassigned = a.unassigned.length? `<div class="card pad" style="border-color:var(--amber)">
+      <div class="row between"><strong>${U.icon('clock')} Para repassar</strong><span class="badge is-ajustes"><span class="pip"></span>${a.unassigned.length}</span></div>
+      <p class="meta-sm" style="margin:6px 0 2px">Alguém concluiu — falta você definir o próximo responsável.</p>
+      ${a.unassigned.slice(0,5).map(t=>item(t,`operacional-cliente.html?c=${t.client.id}`)).join('')}
+    </div>`:'';
+  const cards = people.map(name=>{
+    const items=a.byPerson[name]; const func=Data.funcaoOf(name);
+    const url=`pessoa.html?name=${encodeURIComponent(name)}`;
+    return `<div class="card pad">
+      <a class="row between hover" href="${url}"><strong>${name} ${U.icon('arrow')}</strong><span class="badge">${items.length}</span></a>
+      ${func?`<span class="meta-sm">${func}</span>`:''}
+      <div style="margin-top:6px">${items.slice(0,5).map(t=>item(t,`projeto.html?c=${t.client.id}&p=${t.project.id}`)).join('')}</div>
+      ${items.length>5?`<a class="meta-sm" href="${url}" style="display:inline-block;margin-top:8px;text-decoration:underline">ver todos (${items.length})</a>`:''}
+    </div>`;
+  }).join('');
+  board.innerHTML=`<div class="grid c3 stagger">${unassigned}${cards}</div>`;
+}
 function render(){
   renderKpis();
   renderDashboard();
+  renderTeam();
   const act = Data.activeClients();
   document.getElementById("clientList").innerHTML = act.map(clientCard).join("") ||
     `<div class="empty card pad">Nenhum cliente ativo. Clique em “Adicionar cliente”.</div>`;

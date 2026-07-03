@@ -10,8 +10,8 @@
 
 <header class="topbar">
   <div class="wrap">
-    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
-    <nav class="topnav"><a href="hub.html">← Hub</a><a href="#" onclick="Auth.logout();return false">Sair</a></nav>
+    <a class="brand" id="homeLink"><span class="dot"></span> oFruto <small id="rolelbl">equipe</small></a>
+    <nav class="topnav"><a id="homeNav">← Início</a><a href="#" onclick="Auth.logout();return false">Sair</a></nav>
   </div>
 </header>
 
@@ -37,6 +37,11 @@ function clientCard(c){
 }
 
 function render(){
+  const home=U.homeHref();
+  document.getElementById("homeLink").href=home;
+  document.getElementById("homeNav").href=home;
+  document.getElementById("homeNav").textContent = U.isGestor()?'← Hub':'← Minhas tarefas';
+  document.getElementById("rolelbl").textContent = U.isGestor()?'gestor':'equipe';
   const clients=Data.activeClients();
   document.getElementById("root").innerHTML=`
     <section class="section">
