@@ -74,7 +74,7 @@ function boardSection(){
         <span class="kdot ${col.key}"></span><strong style="font-size:14px">${col.label}</strong>
         <span class="dim">${items.length}</span>
       </div>
-      <div class="col" style="gap:10px">
+      <div class="col kdrop" data-status="${col.key}" ${GESTOR?'ondragover="kOver(event)" ondrop="kDropCol(event)"':''} style="gap:10px;min-height:40px">
         ${items.map(boardCard).join('')||'<div class="kempty">Nada aqui</div>'}
         ${GESTOR?`<button class="kadd" onclick="addBoard('${col.key}')">${U.icon('plus')} tarefa</button>`:''}
       </div>
@@ -86,8 +86,9 @@ function boardCard(t){
   const canMove = GESTOR || t.responsavel===USER;
   const sel=BOARD_COLS.map(c=>`<option value="${c.key}" ${(t.status||'nao')===c.key?'selected':''}>${c.label}</option>`).join('');
   const prazo=(t.inicio||t.fim)?`${t.inicio?U.fmtDateShort(t.inicio):'—'}→${t.fim?U.fmtDateShort(t.fim):'—'}`:'';
-  return `<div class="kcard">
-    <a onclick="openBoard('${t.id}')" style="cursor:pointer;display:block"><strong style="font-size:14px">${t.title}</strong></a>
+  const drag = GESTOR?`draggable="true" ondragstart="kDragStart(event)" ondragend="kDragEnd(event)" ondragover="kOver(event)" ondrop="kDropCard(event)"`:'';
+  return `<div class="kcard" data-id="${t.id}" data-status="${t.status||'nao'}" ${drag}>
+    <a onclick="openBoard('${t.id}')" style="cursor:${GESTOR?'grab':'pointer'};display:block"><strong style="font-size:14px">${t.title}</strong></a>
     ${t.desc?`<p class="meta-sm" style="margin-top:5px;line-height:1.45">${t.desc.slice(0,80)}${t.desc.length>80?'…':''}</p>`:''}
     <div class="row wrap" style="gap:6px;margin-top:9px">
       ${t.responsavel?`<span class="badge">${U.icon('user')} ${t.responsavel}${Data.funcaoOf(t.responsavel)?' · '+Data.funcaoOf(t.responsavel):''}</span>`:'<span class="badge is-breve">sem responsável</span>'}
@@ -165,6 +166,25 @@ function render(){
       </div>
     </section>`;
   U.reveal();
+}
+
+/* arrastar (reordenar / trocar de coluna) */
+let KDRAG=null;
+function kDragStart(e){ KDRAG=e.currentTarget.dataset.id; e.dataTransfer.effectAllowed='move'; e.currentTarget.classList.add('dragging'); }
+function kDragEnd(e){ e.currentTarget.classList.remove('dragging'); KDRAG=null; }
+function kOver(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; }
+async function kDropCard(e){ e.preventDefault(); e.stopPropagation();
+  const targetId=e.currentTarget.dataset.id, status=e.currentTarget.dataset.status;
+  if(!KDRAG||KDRAG===targetId) return; await reorderBoard(KDRAG,targetId,status); }
+async function kDropCol(e){ e.preventDefault();
+  const status=e.currentTarget.dataset.status; if(!KDRAG) return; await reorderBoard(KDRAG,null,status); }
+async function reorderBoard(dragId,targetId,status){
+  const arr=client.board||[]; const di=arr.findIndex(t=>t.id===dragId); if(di<0) return;
+  const [d]=arr.splice(di,1); d.status=status;
+  if(targetId){ const ti=arr.findIndex(t=>t.id===targetId); arr.splice(ti,0,d); }
+  else { let last=-1; arr.forEach((t,i)=>{ if(t.status===status) last=i; }); arr.splice(last+1,0,d); }
+  arr.forEach((t,i)=>t.sort=i);
+  await Store.saveBoard(CID); render();
 }
 
 /* ações do quadro */
