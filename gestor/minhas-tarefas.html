@@ -43,7 +43,7 @@
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/data.js"></script>
 <script>
-let USER, NAME='';
+let USER, NAME='', FILTER=null;
 const CS=(window.APP_CONFIG&&APP_CONFIG.CONTENT_STATUS)||["Em processo","Pronto"];
 const BCOLS=(window.BOARD_COLS)||[{key:'nao',label:'Não iniciada'},{key:'andamento',label:'Em andamento'},{key:'concluido',label:'Concluído'}];
 const BUCKETS=[
@@ -131,7 +131,7 @@ function render(){
   }));
   const hoje=grouped.hoje.length, atras=grouped.atrasada.length, semana=grouped.semana.length;
 
-  const secoes=BUCKETS.map(b=>{
+  const secoes=BUCKETS.filter(b=>!FILTER||b.key===FILTER).map(b=>{
     const list=grouped[b.key]; if(!list.length) return '';
     const accent = b.key==='atrasada'?'color:var(--red)':(b.key==='hoje'?'color:var(--text)':'');
     return `<section class="section" style="padding-top:0">
@@ -154,16 +154,18 @@ function render(){
         <button class="btn btn-primary" onclick="openAdd()">${U.icon('plus')} Nova tarefa</button>
       </div>
       <div class="statrow" style="margin-top:20px">
-        <div><div class="n" style="${atras?'color:var(--red)':''}">${atras}</div><div class="l">Atrasadas</div></div>
-        <div><div class="n">${hoje}</div><div class="l">Hoje</div></div>
-        <div><div class="n">${semana}</div><div class="l">Esta semana</div></div>
-        <div><div class="n">${items.length}</div><div class="l">No total</div></div>
+        <div class="statcell ${FILTER==='atrasada'?'on':''}" onclick="setFilter('atrasada')"><div class="n" style="${atras?'color:var(--red)':''}">${atras}</div><div class="l">Atrasadas</div></div>
+        <div class="statcell ${FILTER==='hoje'?'on':''}" onclick="setFilter('hoje')"><div class="n">${hoje}</div><div class="l">Hoje</div></div>
+        <div class="statcell ${FILTER==='semana'?'on':''}" onclick="setFilter('semana')"><div class="n">${semana}</div><div class="l">Esta semana</div></div>
+        <div class="statcell ${!FILTER?'on':''}" onclick="setFilter(null)"><div class="n">${items.length}</div><div class="l">No total</div></div>
       </div>
+      ${FILTER?`<div class="row" style="gap:8px;margin-top:12px"><span class="meta-sm">Filtrando: <strong style="color:var(--text)">${(BUCKETS.find(b=>b.key===FILTER)||{}).label}</strong></span><button class="btn btn-sm btn-ghost" onclick="setFilter(null)">${U.icon('x')} ver tudo</button></div>`:''}
     </section>
     ${items.length? secoes : `<section class="section"><div class="empty card pad">${U.icon('check')}<br>Nada pendente pra você agora. 🎉<br><button class="btn btn-sm btn-primary" style="margin-top:14px" onclick="openAdd()">${U.icon('plus')} Adicionar tarefa</button></div></section>`}`;
   U.reveal();
 }
 
+function setFilter(k){ FILTER=(FILTER===k)?null:k; render(); window.scrollTo({top:0,behavior:'smooth'}); }
 /* ações */
 async function moveBoard(cid,id,v){ await Store.updateBoardTask(cid,id,{status:v}); U.toast('Atualizado'); render(); }
 async function movePersonal(id,v){ await Store.updatePersonalTask(id,{status:v}); U.toast('Atualizado'); render(); }

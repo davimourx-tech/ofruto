@@ -90,7 +90,7 @@ function boardCard(t){
     <a onclick="openBoard('${t.id}')" style="cursor:pointer;display:block"><strong style="font-size:14px">${t.title}</strong></a>
     ${t.desc?`<p class="meta-sm" style="margin-top:5px;line-height:1.45">${t.desc.slice(0,80)}${t.desc.length>80?'…':''}</p>`:''}
     <div class="row wrap" style="gap:6px;margin-top:9px">
-      ${t.responsavel?`<span class="badge">${U.icon('user')} ${t.responsavel}</span>`:'<span class="badge is-breve">sem responsável</span>'}
+      ${t.responsavel?`<span class="badge">${U.icon('user')} ${t.responsavel}${Data.funcaoOf(t.responsavel)?' · '+Data.funcaoOf(t.responsavel):''}</span>`:'<span class="badge is-breve">sem responsável</span>'}
       ${prazo?`<span class="badge">${U.icon('calendar')} ${prazo}</span>`:''}
     </div>
     <div class="row" style="gap:6px;margin-top:10px">

@@ -605,3 +605,8 @@ input[type=checkbox]{width:19px;height:19px;accent-color:var(--red);flex:none;cu
   border-color:rgba(0,0,0,.10);
   background:linear-gradient(150deg, rgba(0,0,0,.05), rgba(0,0,0,.01) 40%, rgba(0,0,0,.03));
 }
+
+/* stats clicáveis (filtro) */
+.statcell{cursor:pointer;transition:background .18s var(--ease)}
+.statcell:hover{background:var(--surface-2)}
+.statcell.on{background:var(--surface-2);box-shadow:inset 0 -2px 0 var(--accent)}
