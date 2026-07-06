@@ -282,24 +282,28 @@ function clientCard(c){
 
 function renderTeam(){
   const board=document.getElementById('teamboard');
+  const wl=Data.workloadByPerson();
   const a=Data.assignments();
-  const people=Object.keys(a.byPerson).sort();
+  const people=Object.keys(wl).sort();
   if(!people.length && !a.unassigned.length){ board.innerHTML='<div class="empty card pad">Nada em produção no momento.</div>'; return; }
-  const item=(t,href)=>`<a class="row between" href="${href}" style="gap:8px;padding:6px 0;border-top:1px solid var(--line)">
+  const line=(it)=>`<a class="row between" href="${it.href}" style="gap:8px;padding:6px 0;border-top:1px solid var(--line)">
+      <span style="min-width:0"><strong style="font-size:13px">${it.title}</strong>
+        <div class="meta-sm">${it.client.name}${it.sub?' · '+it.sub:''}</div></span>${U.icon('arrow')}</a>`;
+  const post=(t)=>`<a class="row between" href="operacional-cliente.html?c=${t.client.id}" style="gap:8px;padding:6px 0;border-top:1px solid var(--line)">
       <span style="min-width:0"><strong style="font-size:13px">${t.post.title}</strong>
         <div class="meta-sm">${t.client.name}${t.post.prod?' · '+t.post.prod:''}</div></span>${U.icon('arrow')}</a>`;
   const unassigned = a.unassigned.length? `<div class="card pad" style="border-color:var(--amber)">
       <div class="row between"><strong>${U.icon('clock')} Para repassar</strong><span class="badge is-ajustes"><span class="pip"></span>${a.unassigned.length}</span></div>
       <p class="meta-sm" style="margin:6px 0 2px">Alguém concluiu — falta você definir o próximo responsável.</p>
-      ${a.unassigned.slice(0,5).map(t=>item(t,`operacional-cliente.html?c=${t.client.id}`)).join('')}
+      ${a.unassigned.slice(0,5).map(post).join('')}
     </div>`:'';
   const cards = people.map(name=>{
-    const items=a.byPerson[name]; const func=Data.funcaoOf(name);
+    const items=wl[name]; const func=Data.funcaoOf(name);
     const url=`pessoa.html?name=${encodeURIComponent(name)}`;
     return `<div class="card pad">
       <a class="row between hover" href="${url}"><strong>${name} ${U.icon('arrow')}</strong><span class="badge">${items.length}</span></a>
       ${func?`<span class="meta-sm">${func}</span>`:''}
-      <div style="margin-top:6px">${items.slice(0,5).map(t=>item(t,`projeto.html?c=${t.client.id}&p=${t.project.id}`)).join('')}</div>
+      <div style="margin-top:6px">${items.slice(0,5).map(line).join('')}</div>
       ${items.length>5?`<a class="meta-sm" href="${url}" style="display:inline-block;margin-top:8px;text-decoration:underline">ver todos (${items.length})</a>`:''}
     </div>`;
   }).join('');

@@ -17,12 +17,35 @@
 
 <main class="wrap pagepad" id="root"></main>
 
+<div class="scrim" id="scrim" onclick="closeModals(event)"></div>
+<div class="modal" id="boardModal">
+  <div class="head"><strong id="bm-title">Tarefa</strong><button class="btn-icon" id="bx" onclick="closeModals()"></button></div>
+  <div class="body">
+    <div class="field"><label>Título</label><input class="input" id="b-title" placeholder="Ex.: Edição dos vídeos"></div>
+    <div class="field"><label>Descrição / o que precisa ser feito</label>
+      <textarea class="textarea" id="b-desc" style="min-height:100px" placeholder="Briefing da tarefa, o que fazer, detalhes..."></textarea></div>
+    <div class="row" style="gap:12px">
+      <div class="field grow"><label>Responsável</label><select class="input" id="b-resp"></select></div>
+      <div class="field grow"><label>Status</label><select class="input" id="b-status"></select></div>
+    </div>
+    <div class="row" style="gap:12px">
+      <div class="field grow"><label>Início</label><input class="input" type="date" id="b-inicio"></div>
+      <div class="field grow"><label>Fim (prazo)</label><input class="input" type="date" id="b-fim"></div>
+    </div>
+  </div>
+  <div class="foot">
+    <button class="btn btn-ghost" id="b-del" style="margin-right:auto;color:var(--red)" onclick="delBoard()">Excluir</button>
+    <button class="btn btn-ghost" onclick="closeModals()">Fechar</button>
+    <button class="btn btn-primary" onclick="saveBoardTask()">Salvar</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/data.js"></script>
 <script>
 const CID=U.qs("c");
-let client, GESTOR=false;
+let client, GESTOR=false, USER='', EDIT_BOARD=null;
 const STAGES=(window.APP_CONFIG&&APP_CONFIG.PROD_STAGES)||["Ideia","Edição","Gestão"];
 const TEAM=()=>Data.teamNames();
 const DONE=["Pronto","Postado"];
@@ -30,6 +53,50 @@ function isDone(post){ return DONE.includes(post.prod); }
 
 function stageOpts(cur){ return `<option value="">— etapa —</option>`+STAGES.map(s=>`<option ${cur===s?'selected':''}>${s}</option>`).join(''); }
 function respOpts(cur){ return `<option value="">— responsável —</option>`+TEAM().map(m=>`<option ${cur===m?'selected':''}>${m}</option>`).join(''); }
+
+/* ---------- Quadro operacional (Kanban) ---------- */
+function boardSection(){
+  const board=client.board||[];
+  if(!board.length){
+    return `<div class="empty card pad">
+      <p class="muted" style="margin-bottom:14px">Ainda não há um quadro de tarefas para este cliente.</p>
+      ${GESTOR?`<button class="btn btn-primary" onclick="seedBoard()">${U.icon('sparkle')} Criar quadro padrão</button>
+        <button class="btn card" onclick="addBoard('nao')" style="margin-left:8px">${U.icon('plus')} Tarefa em branco</button>`
+      :'<p class="meta-sm">Seu gestor ainda não montou o quadro.</p>'}
+    </div>`;
+  }
+  const cols=BOARD_COLS.map(col=>{
+    const items=board.filter(t=>(t.status||'nao')===col.key).sort((a,b)=>(a.sort||0)-(b.sort||0));
+    return `<div class="kcol">
+      <div class="row" style="gap:8px;margin-bottom:12px">
+        <span class="kdot ${col.key}"></span><strong style="font-size:14px">${col.label}</strong>
+        <span class="dim">${items.length}</span>
+      </div>
+      <div class="col" style="gap:10px">
+        ${items.map(boardCard).join('')||'<div class="kempty">Nada aqui</div>'}
+        ${GESTOR?`<button class="kadd" onclick="addBoard('${col.key}')">${U.icon('plus')} tarefa</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="grid c3" style="gap:14px;align-items:start">${cols}</div>`;
+}
+function boardCard(t){
+  const canMove = GESTOR || t.responsavel===USER;
+  const sel=BOARD_COLS.map(c=>`<option value="${c.key}" ${(t.status||'nao')===c.key?'selected':''}>${c.label}</option>`).join('');
+  const prazo=(t.inicio||t.fim)?`${t.inicio?U.fmtDateShort(t.inicio):'—'}→${t.fim?U.fmtDateShort(t.fim):'—'}`:'';
+  return `<div class="kcard">
+    <a onclick="openBoard('${t.id}')" style="cursor:pointer;display:block"><strong style="font-size:14px">${t.title}</strong></a>
+    ${t.desc?`<p class="meta-sm" style="margin-top:5px;line-height:1.45">${t.desc.slice(0,80)}${t.desc.length>80?'…':''}</p>`:''}
+    <div class="row wrap" style="gap:6px;margin-top:9px">
+      ${t.responsavel?`<span class="badge">${U.icon('user')} ${t.responsavel}</span>`:'<span class="badge is-breve">sem responsável</span>'}
+      ${prazo?`<span class="badge">${U.icon('calendar')} ${prazo}</span>`:''}
+    </div>
+    <div class="row" style="gap:6px;margin-top:10px">
+      <select class="input select-bare" style="padding:5px 10px;font-size:12px" ${canMove?'':'disabled'} onchange="moveBoard('${t.id}',this.value)">${sel}</select>
+      <button class="btn-icon card" style="width:34px;height:34px" onclick="openBoard('${t.id}')" title="Abrir">${U.icon('edit')}</button>
+    </div>
+  </div>`;
+}
 
 function projectCard(p){
   const st=STATUS.project[p.status];
@@ -78,20 +145,71 @@ function render(){
       <div class="eyebrow" style="margin:16px 0 0">Operacional</div>
       <div class="row" style="gap:18px;margin-top:8px">${U.avatarHtml(client,'lg')}
         <div class="col"><h1 class="display" style="font-size:clamp(26px,4.5vw,40px)">${client.name}</h1>
-          <span class="muted">Projetos · etapa, responsável e prazo</span></div></div>
+          <span class="muted">Quadro de tarefas, projetos e prazos</span></div></div>
     </section>
+
     <section class="section">
+      <div class="row between wrap" style="gap:10px;margin-bottom:16px">
+        <div class="eyebrow" style="margin:0">O que temos pra fazer</div>
+        ${(GESTOR&&(client.board||[]).length)?`<button class="btn btn-sm card" onclick="addBoard('nao')">${U.icon('plus')} Tarefa</button>`:''}
+      </div>
+      ${boardSection()}
+    </section>
+
+    <section class="section">
+      <div class="eyebrow" style="margin-bottom:16px">Projetos & conteúdos</div>
       <div class="col stagger" style="gap:16px">
         ${projs.length?projs.map(projectCard).join(''):'<div class="empty card pad">Nenhum projeto ainda.</div>'}
       </div>
     </section>`;
   U.reveal();
 }
+
+/* ações do quadro */
+async function seedBoard(){ await Store.seedBoard(CID); U.toast('Quadro criado'); render(); }
+async function addBoard(status){ const t=prompt('Nome da tarefa:'); if(t===null) return;
+  const name=t.trim(); if(!name){ U.toast('Escreva o nome'); return; }
+  await Store.addBoardTask(CID,{title:name,status}); render(); }
+async function moveBoard(id,status){ await Store.updateBoardTask(CID,id,{status}); U.toast('Movida'); render(); }
+function openBoard(id){
+  const t=(client.board||[]).find(x=>x.id===id); if(!t) return; EDIT_BOARD=id;
+  document.getElementById('bm-title').textContent = GESTOR?'Editar tarefa':t.title;
+  document.getElementById('b-resp').innerHTML=respOpts(t.responsavel);
+  document.getElementById('b-status').innerHTML=BOARD_COLS.map(c=>`<option value="${c.key}" ${(t.status||'nao')===c.key?'selected':''}>${c.label}</option>`).join('');
+  bset('title',t.title); bset('desc',t.desc||''); bset('resp',t.responsavel||''); bset('status',t.status||'nao');
+  bset('inicio',t.inicio||''); bset('fim',t.fim||'');
+  const canMove = GESTOR || t.responsavel===USER;
+  ['b-title','b-desc','b-resp','b-inicio','b-fim'].forEach(id=>document.getElementById(id).disabled=!GESTOR);
+  document.getElementById('b-status').disabled=!canMove;
+  document.getElementById('b-del').style.display=GESTOR?'':'none';
+  openModal('boardModal');
+}
+function bset(k,v){ document.getElementById('b-'+k).value=v; }
+function bget(k){ return document.getElementById('b-'+k).value; }
+async function saveBoardTask(){
+  if(!EDIT_BOARD) return;
+  const patch = GESTOR
+    ? { title:bget('title').trim()||'Sem título', desc:bget('desc').trim(), responsavel:bget('resp'),
+        status:bget('status'), inicio:bget('inicio')||'', fim:bget('fim')||'' }
+    : { status:bget('status') };   // membro só muda status
+  await Store.updateBoardTask(CID,EDIT_BOARD,patch);
+  closeModals(); U.toast('Salvo'); render();
+}
+async function delBoard(){ if(!EDIT_BOARD||!confirm('Excluir esta tarefa?')) return;
+  await Store.deleteBoardTask(CID,EDIT_BOARD); closeModals(); U.toast('Excluída'); render(); }
+
+function openModal(id){document.getElementById("scrim").classList.add("open");document.getElementById(id).classList.add("open");}
+function closeModals(e){if(e&&e.target.closest(".modal"))return;
+  document.querySelectorAll(".modal").forEach(m=>m.classList.remove("open"));
+  document.getElementById("scrim").classList.remove("open");}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModals();});
 async function setMeta(pid,field,val){ const patch={}; patch[field]=(field.startsWith('prazo')?(val||null):val);
   await Store.setProjectMeta(CID,pid,patch); U.toast('Atualizado'); render(); }
 
 function start(){
   GESTOR=U.isGestor();
+  const u=Auth.user(); USER=u?u.name:'';
+  document.getElementById("bx").innerHTML=U.icon("x");
   document.getElementById("homeLink").href=U.homeHref();
   document.getElementById("rolelbl").textContent=GESTOR?'gestor':'equipe';
   client=Data.client(CID);

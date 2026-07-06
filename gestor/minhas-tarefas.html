@@ -55,8 +55,30 @@ function taskRow(t){
   </div>`;
 }
 
+const BCOLS=(window.BOARD_COLS)||[{key:'nao',label:'Não iniciada'},{key:'andamento',label:'Em andamento'},{key:'concluido',label:'Concluído'}];
+function boardTaskRow(b){
+  const sel=BCOLS.map(c=>`<option value="${c.key}" ${(b.task.status||'nao')===c.key?'selected':''}>${c.label}</option>`).join('');
+  return `<div class="card pad">
+    <div class="row between wrap" style="gap:12px">
+      <a class="grow" style="min-width:220px" href="operacional-cliente.html?c=${b.client.id}">
+        <div class="row wrap" style="gap:8px;margin-bottom:6px">
+          <span class="badge">${U.icon('grid')} Processo</span>
+          <span class="badge is-ajustes"><span class="pip"></span>${(BCOLS.find(c=>c.key===(b.task.status||'nao'))||{}).label||''}</span>
+        </div>
+        <strong style="font-size:16px">${b.task.title}</strong>
+        <div class="meta-sm" style="margin-top:3px">${b.client.name}${b.task.fim?' · prazo '+U.fmtDate(b.task.fim):''}</div>
+      </a>
+      <div class="row wrap" style="gap:8px;align-items:center">
+        <select class="input select-bare" style="padding:6px 10px" onchange="moveBoard('${b.client.id}','${b.task.id}',this.value)">${sel}</select>
+        <a class="btn btn-sm card nowrap" href="operacional-cliente.html?c=${b.client.id}">Abrir ${U.icon('arrow')}</a>
+      </div>
+    </div>
+  </div>`;
+}
+async function moveBoard(cid,id,status){ await Store.updateBoardTask(cid,id,{status}); U.toast('Status atualizado'); render(); }
 function render(){
   const tasks=Data.tasksOf(USER.name);
+  const boardTasks=Data.boardTasksOf(USER.name);
   const nome=USER.name.split(' ')[0];
   const func=Data.funcaoOf(USER.name);
   // agrupa por cliente
@@ -70,18 +92,24 @@ function render(){
       <h1 class="display" style="font-size:clamp(28px,5vw,44px)">${U.greet().charAt(0).toUpperCase()+U.greet().slice(1)}, ${nome}.</h1>
       <p class="lead" style="margin-top:10px">${func?func+' · ':''}Atualize o status e, ao terminar sua parte, toque em <strong>Concluí</strong>.</p>
       <div class="statrow" style="margin-top:20px">
+        <div><div class="n">${boardTasks.length}</div><div class="l">Tarefas</div></div>
         <div><div class="n">${tasks.length}</div><div class="l">Conteúdos</div></div>
         <div><div class="n">${groups.length}</div><div class="l">Clientes</div></div>
-        <div><div class="n">${prontos}</div><div class="l">Prontos</div></div>
       </div>
     </section>
+
+    ${boardTasks.length?`<section class="section">
+      <div class="eyebrow" style="margin-bottom:14px">Tarefas do processo</div>
+      <div class="col" style="gap:12px">${boardTasks.map(boardTaskRow).join('')}</div>
+    </section>`:''}
+
     <section class="section">
-      ${groups.length? groups.map(g=>`
+      ${tasks.length?`<div class="eyebrow" style="margin-bottom:14px">Conteúdos sob sua responsabilidade</div>`+groups.map(g=>`
         <div style="margin-bottom:22px">
           <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">${g.name}</div>
           <div class="col" style="gap:12px">${g.items.map(taskRow).join('')}</div>
         </div>`).join('')
-      : `<div class="empty card pad">${U.icon('check')}<br>Nada pendente pra você agora. 🎉</div>`}
+      : (boardTasks.length?'':`<div class="empty card pad">${U.icon('check')}<br>Nada pendente pra você agora. 🎉</div>`)}
     </section>`;
   U.reveal();
 }

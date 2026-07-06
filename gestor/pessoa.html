@@ -56,8 +56,30 @@ function taskRow(t){
   </div>`;
 }
 
+const BCOLS=(window.BOARD_COLS)||[{key:'nao',label:'Não iniciada'},{key:'andamento',label:'Em andamento'},{key:'concluido',label:'Concluído'}];
+function boardRow(b){
+  const st=BCOLS.map(c=>`<option value="${c.key}" ${(b.task.status||'nao')===c.key?'selected':''}>${c.label}</option>`).join('');
+  const names=Data.teamNames();
+  const rs='<option value="">— sem responsável —</option>'+names.map(n=>`<option ${b.task.responsavel===n?'selected':''}>${n}</option>`).join('');
+  return `<div class="card pad">
+    <div class="row between wrap" style="gap:12px">
+      <a class="grow" style="min-width:220px" href="operacional-cliente.html?c=${b.client.id}">
+        <div class="row wrap" style="gap:8px;margin-bottom:6px"><span class="badge">${U.icon('grid')} Processo</span></div>
+        <strong style="font-size:16px">${b.task.title}</strong>
+        <div class="meta-sm" style="margin-top:3px">${b.client.name}${b.task.fim?' · prazo '+U.fmtDate(b.task.fim):''}</div>
+      </a>
+      <div class="row wrap" style="gap:12px;align-items:end">
+        <label class="col meta-sm" style="gap:4px">Status<select class="input select-bare" style="padding:6px 10px" onchange="bStatus('${b.client.id}','${b.task.id}',this.value)">${st}</select></label>
+        <label class="col meta-sm" style="gap:4px">Responsável<select class="input select-bare" style="padding:6px 10px" onchange="bResp('${b.client.id}','${b.task.id}',this.value)">${rs}</select></label>
+      </div>
+    </div>
+  </div>`;
+}
+async function bStatus(cid,id,v){ await Store.updateBoardTask(cid,id,{status:v}); U.toast('Status atualizado'); render(); }
+async function bResp(cid,id,v){ await Store.updateBoardTask(cid,id,{responsavel:v}); U.toast(v?('Repassado para '+v):'Responsável removido'); render(); }
 function render(){
   const tasks=Data.tasksOf(NAME);
+  const boardTasks=Data.boardTasksOf(NAME);
   const func=Data.funcaoOf(NAME);
   const byClient={};
   tasks.forEach(t=>{ (byClient[t.client.id]=byClient[t.client.id]||{name:t.client.name,items:[]}).items.push(t); });
@@ -70,17 +92,23 @@ function render(){
         <div class="row" style="gap:14px">
           <div class="avatar lg" style="background:var(--surface-3)">${U.initials(NAME||'?')}</div>
           <div class="col"><h1 class="display" style="font-size:clamp(26px,4.5vw,40px)">${NAME||'Pessoa'}</h1>
-            <span class="muted">${func?func+' · ':''}${tasks.length} ${tasks.length===1?'conteúdo':'conteúdos'} sob responsabilidade</span></div>
+            <span class="muted">${func?func+' · ':''}${boardTasks.length} tarefa(s) · ${tasks.length} conteúdo(s)</span></div>
         </div>
       </div>
     </section>
+
+    ${boardTasks.length?`<section class="section">
+      <div class="eyebrow" style="margin-bottom:14px">Tarefas do processo</div>
+      <div class="col" style="gap:12px">${boardTasks.map(boardRow).join('')}</div>
+    </section>`:''}
+
     <section class="section">
-      ${groups.length? groups.map(g=>`
+      ${tasks.length?`<div class="eyebrow" style="margin-bottom:14px">Conteúdos</div>`+groups.map(g=>`
         <div style="margin-bottom:22px">
           <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">${g.name}</div>
           <div class="col" style="gap:12px">${g.items.map(taskRow).join('')}</div>
         </div>`).join('')
-      : `<div class="empty card pad">Nada sob responsabilidade dessa pessoa agora.</div>`}
+      : (boardTasks.length?'':`<div class="empty card pad">Nada sob responsabilidade dessa pessoa agora.</div>`)}
     </section>`;
   U.reveal();
 }

@@ -45,6 +45,22 @@ const TYPE = {
 };
 const FUNCOES = (window.APP_CONFIG && APP_CONFIG.FUNCOES) || ["Social media","Editor de vídeo","Designer","Cinegrafista"];
 const TASK_DONE = ["Pronto","Postado"];
+/* quadro operacional (Kanban de tarefas do processo, por cliente) */
+const BOARD_COLS = [
+  { key:'nao',        label:'Não iniciada' },
+  { key:'andamento',  label:'Em andamento' },
+  { key:'concluido',  label:'Concluído' }
+];
+const DEFAULT_BOARD = (window.APP_CONFIG && APP_CONFIG.DEFAULT_BOARD) || [
+  "Ideia & Briefing",
+  "Roteiros & Copys",
+  "Gravação / Captação",
+  "Edição dos vídeos",
+  "Design de artes & carrosséis",
+  "Validação do planejamento",
+  "Revisão & ajustes",
+  "Gestão / Postagem"
+];
 const WEEKDAYS = ["Domingo","Segunda","Terça","Quarta","Quinta","Sexta","Sábado"];
 const MONTHS_FULL = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
 
@@ -212,6 +228,29 @@ const Data = {
       });
     });
     return out;
+  },
+  /* tarefas do QUADRO (board) atribuídas a uma pessoa, ainda não concluídas */
+  boardTasksOf: (name) => {
+    const out=[];
+    (DB.clients||[]).forEach(c=>{ if(c.archived) return;
+      (c.board||[]).forEach(t=>{ if(t.responsavel===name && t.status!=='concluido') out.push({ client:c, task:t }); });
+    });
+    return out;
+  },
+  /* carga de trabalho unificada por pessoa: conteúdos (posts) + tarefas do quadro */
+  workloadByPerson: () => {
+    const map={}; const add=(n,it)=>{ if(!n) return; (map[n]=map[n]||[]).push(it); };
+    (DB.clients||[]).forEach(c=>{ if(c.archived) return;
+      c.projects.forEach(p=>{ if(p.kind==='entrega') return; p.posts.forEach(post=>{
+        if(TASK_DONE.includes(post.prod)) return;
+        add(post.responsavel,{ client:c, kind:'post', title:post.title, sub:(post.prod||'conteúdo'), href:`projeto.html?c=${c.id}&p=${p.id}` });
+      }); });
+      (c.board||[]).forEach(t=>{ if(t.status==='concluido') return;
+        const lbl=(BOARD_COLS.find(x=>x.key===(t.status||'nao'))||{}).label||'';
+        add(t.responsavel,{ client:c, kind:'board', title:t.title, sub:lbl, href:`operacional-cliente.html?c=${c.id}` });
+      });
+    });
+    return map;
   },
   /* visão da equipe pro gestor: por pessoa + itens em produção sem responsável */
   assignments: () => {
@@ -387,7 +426,7 @@ const Store = {
       DB.clients = clients.map(c=>({
         id:c.id, token:c.token, name:c.name, handle:c.handle||'', color:c.color||'art-1',
         archived:!!c.archived, message:c.message||'', avatar:c.avatar||'', dados:c.dados||{}, stage:c.stage||'',
-        extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], pilares:c.pilares||[], finance:c.finance||{}, reports:c.reports||[],
+        extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], pilares:c.pilares||[], finance:c.finance||{}, reports:c.reports||[], board:c.board||[],
         tasks: tasks.filter(t=>t.client_id===c.id).map(t=>({ id:t.id, title:t.title||'', note:t.note||'', done:!!t.done, due:t.due||'', sort:t.sort||0 })),
         projects: projects.filter(p=>p.client_id===c.id).map(p=>({
           id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'', cover:p.cover||'',
@@ -570,6 +609,20 @@ const Store = {
   /* pessoa concluiu a parte dela: sai como responsável (o gestor repassa) */
   async concludePart(cid,pid,postId){ const p=Data.post(cid,pid,postId); if(!p) return; p.responsavel='';
     if(this.sb) await this.sb.from('posts').update({ responsavel:'' }).eq('id',postId); },
+
+  /* ---- Quadro operacional (Kanban de tarefas do processo) ---- */
+  async saveBoard(cid){ const c=Data.client(cid); if(!c) return;
+    if(this.sb) await this.sb.from('clients').update({ board:c.board||[] }).eq('id',cid); },
+  async seedBoard(cid){ const c=Data.client(cid); if(!c) return;
+    c.board=DEFAULT_BOARD.map((t,i)=>({ id:genId(), title:t, desc:'', status:'nao', responsavel:'', inicio:'', fim:'', sort:i }));
+    await this.saveBoard(cid); },
+  async addBoardTask(cid,{title,status}){ const c=Data.client(cid); if(!c) return; c.board=c.board||[];
+    const t={ id:genId(), title:title||'Nova tarefa', desc:'', status:status||'nao', responsavel:'', inicio:'', fim:'', sort:c.board.length };
+    c.board.push(t); await this.saveBoard(cid); return t; },
+  async updateBoardTask(cid,id,patch){ const c=Data.client(cid); const t=(c.board||[]).find(x=>x.id===id); if(!t) return;
+    Object.assign(t,patch); await this.saveBoard(cid); },
+  async deleteBoardTask(cid,id){ const c=Data.client(cid); const i=(c.board||[]).findIndex(x=>x.id===id); if(i>=0) c.board.splice(i,1);
+    await this.saveBoard(cid); },
   async updateTeam(id,patch){ const m=(DB.team||[]).find(x=>x.id===id); if(!m) return; Object.assign(m,patch);
     if(this.sb) await this.sb.from('team').update(patch).eq('id',id); },
   async deleteTeam(id){ const i=(DB.team||[]).findIndex(x=>x.id===id); if(i>=0) DB.team.splice(i,1);
