@@ -247,9 +247,10 @@ function statusSelect(post){
 function aprBadge(post){ const s=post.status; if(!s||s==='pendente') return '';
   const st=STATUS.post[s]||{cls:'',label:s};
   return `<span class="badge ${st.cls}" style="font-size:10px;padding:2px 8px;margin-top:4px"><span class="pip"></span>${st.label}</span>`; }
+function sortedPosts(){ return project.posts.slice().sort((a,b)=>(a.date||'9999-99-99').localeCompare(b.date||'9999-99-99')); }
 function postsTable(){
   if(!project.posts.length) return '<div class="empty card pad">Nenhum conteúdo. Clique em “Novo”.</div>';
-  const rows=project.posts.map(post=>{
+  const rows=sortedPosts().map(post=>{
     const t=TYPE[post.type];
     const link = post.embed ? `<a href="${post.embed}" target="_blank" rel="noopener" title="Abrir link">${U.icon('arrow')}</a>` : '<span class="dim">—</span>';
     return `<tr>
@@ -265,7 +266,7 @@ function postsTable(){
   const table=`<div class="card pad only-wide" style="overflow-x:auto"><table class="mtable">
     <thead><tr><th>Tema & roteiro</th><th>Formato</th><th>Status</th><th>Data</th><th>Link</th><th>Resp.</th><th></th></tr></thead>
     <tbody>${rows}</tbody></table></div>`;
-  const cards=`<div class="only-narrow col" style="gap:12px">${project.posts.map(post=>{
+  const cards=`<div class="only-narrow col" style="gap:12px">${sortedPosts().map(post=>{
     const t=TYPE[post.type];
     return `<div class="card pad">
       <div class="row between" style="gap:10px">
