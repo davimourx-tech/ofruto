@@ -151,7 +151,7 @@ function watchEnd(){
 async function start(){
   client = Data.clientByToken(TOKEN);
   project = client ? Data.project(client.id, PID) : null;
-  if(!project){ document.getElementById("root").innerHTML='<div class="wrap empty" style="padding-top:60px">Projeto não encontrado. <a href="index.html?c='+TOKEN+'">Voltar</a></div>'; return; }
+  if(!project || project.archived){ document.getElementById("root").innerHTML='<div class="wrap empty" style="padding-top:60px">Projeto não disponível. <a href="index.html?c='+TOKEN+'">Voltar</a></div>'; return; }
   await Store.applyDeadline(project);
   render();
 }

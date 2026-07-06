@@ -435,7 +435,7 @@ const Store = {
         extraction:c.extraction||{}, diagnostico:c.diagnostico||{}, matriz:c.matriz||[], pilares:c.pilares||[], finance:c.finance||{}, reports:c.reports||[], board:c.board||[],
         tasks: tasks.filter(t=>t.client_id===c.id).map(t=>({ id:t.id, title:t.title||'', note:t.note||'', done:!!t.done, due:t.due||'', sort:t.sort||0 })),
         projects: projects.filter(p=>p.client_id===c.id).map(p=>({
-          id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'', cover:p.cover||'',
+          id:p.id, name:p.name, status:p.status||'breve', intro:p.intro||'', cover:p.cover||'', archived:!!p.archived,
           kind:p.kind||'conteudo', deadline:p.deadline||'', responsavel:p.responsavel||'', prazo:p.prazo||'',
           etapa:p.etapa||'', prazo_inicio:p.prazo_inicio||'', prazo_fim:p.prazo_fim||'',
           posts: posts.filter(x=>x.project_id===p.id).map(postFromDb)
@@ -538,6 +538,10 @@ const Store = {
   },
   async setProjectStatus(cid,pid,status){ Data.project(cid,pid).status=status;
     if(this.sb) await this.sb.from('projects').update({status}).eq('id',pid); },
+  async setProjectArchived(cid,pid,val){ const p=Data.project(cid,pid); if(p) p.archived=val;
+    if(this.sb) await this.sb.from('projects').update({archived:val}).eq('id',pid); },
+  async deleteProject(cid,pid){ const c=Data.client(cid); const i=c.projects.findIndex(p=>p.id===pid); if(i>=0) c.projects.splice(i,1);
+    if(this.sb){ await this.sb.from('posts').delete().eq('project_id',pid); await this.sb.from('projects').delete().eq('id',pid); } },
   async setProjectMeta(cid,pid,patch){ Object.assign(Data.project(cid,pid),patch);
     if(this.sb) await this.sb.from('projects').update(patch).eq('id',pid); },
 

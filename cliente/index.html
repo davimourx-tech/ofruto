@@ -52,7 +52,7 @@ function projectCard(p){
 function render(){
   const first=client.name.split(" ")[0];
   document.getElementById("who").textContent=client.handle;
-  const visible=client.projects;
+  const visible=client.projects.filter(p=>!p.archived);
   const totalPosts=visible.reduce((a,p)=>a+p.posts.length,0);
   const aprovados=visible.reduce((a,p)=>a+p.posts.filter(x=>x.status==='aprovado').length,0);
   document.getElementById("root").innerHTML=`
