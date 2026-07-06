@@ -11,119 +11,197 @@
 <header class="topbar">
   <div class="wrap">
     <a class="brand" id="homeLink"><span class="dot"></span> oFruto <small id="rolelbl">equipe</small></a>
-    <nav class="topnav">
-      <a href="operacional.html">Clientes</a>
-      <a href="#" onclick="Auth.logout();return false">Sair</a>
-    </nav>
+    <nav class="topnav"><a href="operacional.html">Clientes</a><a href="#" onclick="Auth.logout();return false">Sair</a></nav>
   </div>
 </header>
 
 <main class="wrap pagepad" id="root"></main>
 
+<!-- Modal: nova tarefa -->
+<div class="scrim" id="scrim" onclick="closeModals(event)"></div>
+<div class="modal" id="addModal">
+  <div class="head"><strong>Nova tarefa</strong><button class="btn-icon" id="ax" onclick="closeModals()"></button></div>
+  <div class="body">
+    <div class="field"><label>O que precisa ser feito</label>
+      <input class="input" id="a-title" placeholder="Ex.: Editar vídeos da Amanda"></div>
+    <div class="field"><label>Para qual cliente?</label>
+      <select class="input" id="a-dest"></select></div>
+    <div class="row" style="gap:12px">
+      <div class="field grow"><label>Prazo (dia)</label><input class="input" type="date" id="a-prazo"></div>
+      <div class="field grow"><label>Prioridade</label>
+        <select class="input" id="a-prio"><option value="normal">Normal</option><option value="alta">Alta</option></select></div>
+    </div>
+    <p class="hint">Tarefa de cliente entra no Quadro dele com você como responsável. “Pessoal / avulsa” fica só sua.</p>
+  </div>
+  <div class="foot">
+    <button class="btn btn-ghost" onclick="closeModals()">Cancelar</button>
+    <button class="btn btn-primary" onclick="addTask()">Adicionar</button>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../assets/js/config.js"></script>
 <script src="../assets/js/data.js"></script>
 <script>
+let USER, NAME='';
 const CS=(window.APP_CONFIG&&APP_CONFIG.CONTENT_STATUS)||["Em processo","Pronto"];
-let USER;
-
-function statusSelect(t){
-  const opts='<option value="">— status —</option>'+CS.map(s=>`<option ${t.post.prod===s?'selected':''}>${s}</option>`).join('');
-  return `<select class="input select-bare" style="padding:6px 10px" onchange="setStatus('${t.client.id}','${t.project.id}','${t.post.id}',this.value)">${opts}</select>`;
-}
-function taskRow(t){
-  const tp=TYPE[t.post.type]||{label:'',icon:'film'};
-  const prazo=(t.project.prazo_inicio||t.project.prazo_fim)
-    ? `${t.project.prazo_inicio?U.fmtDate(t.project.prazo_inicio):'—'} → ${t.project.prazo_fim?U.fmtDate(t.project.prazo_fim):'—'}` : '';
-  return `<div class="card pad">
-    <div class="row between wrap" style="gap:12px">
-      <a class="grow" style="min-width:220px;cursor:pointer" href="tarefa.html?c=${t.client.id}&p=${t.project.id}&post=${t.post.id}">
-        <div class="row wrap" style="gap:8px;margin-bottom:6px">
-          <span class="badge">${U.icon(tp.icon)} ${tp.label}</span>
-          ${t.project.etapa?`<span class="badge">${t.project.etapa}</span>`:''}
-          ${t.post.prod?`<span class="badge is-ajustes"><span class="pip"></span>${t.post.prod}</span>`:''}
-        </div>
-        <strong style="font-size:16px">${t.post.title}</strong>
-        <div class="meta-sm" style="margin-top:3px">${t.client.name} · ${t.project.name}${prazo?` · ${U.icon('calendar')} ${prazo}`:''}</div>
-      </a>
-      <div class="row wrap" style="gap:8px;align-items:center">
-        ${statusSelect(t)}
-        <a class="btn btn-sm card nowrap" href="tarefa.html?c=${t.client.id}&p=${t.project.id}&post=${t.post.id}">Abrir ${U.icon('arrow')}</a>
-        <button class="btn btn-sm btn-primary nowrap" onclick="concluir('${t.client.id}','${t.project.id}','${t.post.id}')">${U.icon('check')} Concluí</button>
-      </div>
-    </div>
-  </div>`;
-}
-
 const BCOLS=(window.BOARD_COLS)||[{key:'nao',label:'Não iniciada'},{key:'andamento',label:'Em andamento'},{key:'concluido',label:'Concluído'}];
-function boardTaskRow(b){
-  const sel=BCOLS.map(c=>`<option value="${c.key}" ${(b.task.status||'nao')===c.key?'selected':''}>${c.label}</option>`).join('');
+const BUCKETS=[
+  {key:'atrasada', label:'Atrasadas'},
+  {key:'hoje',     label:'Hoje'},
+  {key:'semana',   label:'Esta semana'},
+  {key:'depois',   label:'Depois'},
+  {key:'sem',      label:'Sem data'}
+];
+function dayDiff(d){ const t=new Date(); t.setHours(0,0,0,0); return Math.round((new Date(d+'T00:00:00')-t)/86400000); }
+function bucketOf(it){
+  const inicio=it.inicio||'', fim=it.prazo||'';
+  if(!inicio && !fim) return 'sem';
+  if(fim && dayDiff(fim)<0) return 'atrasada';         // passou o prazo
+  if(inicio && fim){                                    // janela início→fim
+    if(dayDiff(inicio)>0) return dayDiff(inicio)<=7?'semana':'depois';  // ainda não começou
+    return 'hoje';                                       // ativa agora (trabalha até concluir)
+  }
+  const single=fim||inicio, d=dayDiff(single);           // só uma data
+  if(d<0) return 'atrasada'; if(d===0) return 'hoje'; if(d<=7) return 'semana'; return 'depois';
+}
+
+/* junta board + conteúdos + pessoais em itens normalizados */
+function collect(){
+  const items=[];
+  Data.boardTasksOf(NAME).forEach(b=>items.push({
+    kind:'board', title:b.task.title, inicio:b.task.inicio||'', prazo:b.task.fim||'', prioridade:b.task.prioridade||'normal',
+    status:b.task.status||'nao', cid:b.client.id, boardId:b.task.id,
+    src:b.client.name+' · Processo', href:`operacional-cliente.html?c=${b.client.id}` }));
+  Data.tasksOf(NAME).forEach(t=>items.push({
+    kind:'post', title:t.post.title, prazo:t.post.date||'', prioridade:'normal',
+    status:t.post.prod||'', cid:t.client.id, pid:t.project.id, postid:t.post.id,
+    src:t.client.name+' · Conteúdo', href:`tarefa.html?c=${t.client.id}&p=${t.project.id}&post=${t.post.id}` }));
+  Data.personalTasksOf(NAME).forEach(p=>items.push({
+    kind:'personal', title:p.title, prazo:p.prazo||'', prioridade:p.prioridade||'normal',
+    status:p.status||'nao', pid:p.id, src:'Pessoal', href:'' }));
+  return items;
+}
+
+function statusControl(it){
+  if(it.kind==='post'){
+    const opts='<option value="">— status —</option>'+CS.map(s=>`<option ${it.status===s?'selected':''}>${s}</option>`).join('');
+    return `<select class="input select-bare" style="padding:6px 10px" onchange="setPost('${it.cid}','${it.pid}','${it.postid}',this.value)">${opts}</select>`;
+  }
+  const opts=BCOLS.map(c=>`<option value="${c.key}" ${(it.status||'nao')===c.key?'selected':''}>${c.label}</option>`).join('');
+  const fn = it.kind==='board' ? `moveBoard('${it.cid}','${it.boardId}',this.value)` : `movePersonal('${it.pid}',this.value)`;
+  return `<select class="input select-bare" style="padding:6px 10px" onchange="${fn}">${opts}</select>`;
+}
+function actions(it){
+  if(it.kind==='post') return `<a class="btn btn-sm card nowrap" href="${it.href}">Abrir ${U.icon('arrow')}</a>
+    <button class="btn btn-sm btn-primary nowrap" onclick="concluir('${it.cid}','${it.pid}','${it.postid}')">${U.icon('check')} Concluí</button>`;
+  if(it.kind==='board') return `<a class="btn btn-sm card nowrap" href="${it.href}">Abrir ${U.icon('arrow')}</a>`;
+  return `<button class="btn-icon card" onclick="delPersonal('${it.pid}')" title="Excluir">${U.icon('trash')}</button>`;
+}
+function itemCard(it){
+  const prio = it.prioridade==='alta'?`<span class="badge is-reprovado"><span class="pip"></span>Alta</span>`:'';
   return `<div class="card pad">
     <div class="row between wrap" style="gap:12px">
-      <a class="grow" style="min-width:220px" href="operacional-cliente.html?c=${b.client.id}">
+      <div class="grow" style="min-width:220px">
         <div class="row wrap" style="gap:8px;margin-bottom:6px">
-          <span class="badge">${U.icon('grid')} Processo</span>
-          <span class="badge is-ajustes"><span class="pip"></span>${(BCOLS.find(c=>c.key===(b.task.status||'nao'))||{}).label||''}</span>
+          <span class="badge">${it.kind==='personal'?U.icon('user'):(it.kind==='board'?U.icon('grid'):U.icon('film'))} ${it.src}</span>
+          ${prio}
+          ${it.prazo?`<span class="meta-sm">${U.icon('calendar')} ${it.kind==='board'?'entregar ':''}${U.fmtDate(it.prazo)}</span>`:''}
         </div>
-        <strong style="font-size:16px">${b.task.title}</strong>
-        <div class="meta-sm" style="margin-top:3px">${b.client.name}${b.task.fim?' · prazo '+U.fmtDate(b.task.fim):''}</div>
-      </a>
+        <strong style="font-size:16px">${it.title}</strong>
+      </div>
       <div class="row wrap" style="gap:8px;align-items:center">
-        <select class="input select-bare" style="padding:6px 10px" onchange="moveBoard('${b.client.id}','${b.task.id}',this.value)">${sel}</select>
-        <a class="btn btn-sm card nowrap" href="operacional-cliente.html?c=${b.client.id}">Abrir ${U.icon('arrow')}</a>
+        ${statusControl(it)} ${actions(it)}
       </div>
     </div>
   </div>`;
 }
-async function moveBoard(cid,id,status){ await Store.updateBoardTask(cid,id,{status}); U.toast('Status atualizado'); render(); }
+
 function render(){
-  const tasks=Data.tasksOf(USER.name);
-  const boardTasks=Data.boardTasksOf(USER.name);
-  const nome=USER.name.split(' ')[0];
-  const func=Data.funcaoOf(USER.name);
-  // agrupa por cliente
-  const byClient={};
-  tasks.forEach(t=>{ (byClient[t.client.id]=byClient[t.client.id]||{name:t.client.name,items:[]}).items.push(t); });
-  const groups=Object.values(byClient);
-  const prontos=tasks.filter(t=>["Pronto","Postado"].includes(t.post.prod)).length;
+  const items=collect();
+  const nome=NAME.split(' ')[0];
+  const func=Data.funcaoOf(NAME);
+  // ordena e agrupa em baldes
+  const grouped={}; BUCKETS.forEach(b=>grouped[b.key]=[]);
+  items.forEach(it=>grouped[bucketOf(it)].push(it));
+  Object.values(grouped).forEach(list=>list.sort((a,b)=>{
+    const pa=a.prioridade==='alta'?0:1, pb=b.prioridade==='alta'?0:1;
+    if(pa!==pb) return pa-pb;
+    return (a.prazo||'9999').localeCompare(b.prazo||'9999');
+  }));
+  const hoje=grouped.hoje.length, atras=grouped.atrasada.length, semana=grouped.semana.length;
+
+  const secoes=BUCKETS.map(b=>{
+    const list=grouped[b.key]; if(!list.length) return '';
+    const accent = b.key==='atrasada'?'color:var(--red)':(b.key==='hoje'?'color:var(--text)':'');
+    return `<section class="section" style="padding-top:0">
+      <div class="row between" style="margin-bottom:12px">
+        <div class="eyebrow" style="margin:0;${accent}">${b.label}</div>
+        <span class="badge">${list.length}</span>
+      </div>
+      <div class="col" style="gap:12px">${list.map(itemCard).join('')}</div>
+    </section>`;
+  }).join('');
+
   document.getElementById("root").innerHTML=`
     <section class="section">
-      <div class="eyebrow">Minhas tarefas</div>
-      <h1 class="display" style="font-size:clamp(28px,5vw,44px)">${U.greet().charAt(0).toUpperCase()+U.greet().slice(1)}, ${nome}.</h1>
-      <p class="lead" style="margin-top:10px">${func?func+' · ':''}Atualize o status e, ao terminar sua parte, toque em <strong>Concluí</strong>.</p>
+      <div class="row between wrap" style="gap:12px">
+        <div>
+          <div class="eyebrow">Minha semana</div>
+          <h1 class="display" style="font-size:clamp(28px,5vw,44px)">${U.greet().charAt(0).toUpperCase()+U.greet().slice(1)}, ${nome}.</h1>
+          <p class="lead" style="margin-top:10px">${func?func+' · ':''}Tudo que é seu, de todos os clientes, num lugar só.</p>
+        </div>
+        <button class="btn btn-primary" onclick="openAdd()">${U.icon('plus')} Nova tarefa</button>
+      </div>
       <div class="statrow" style="margin-top:20px">
-        <div><div class="n">${boardTasks.length}</div><div class="l">Tarefas</div></div>
-        <div><div class="n">${tasks.length}</div><div class="l">Conteúdos</div></div>
-        <div><div class="n">${groups.length}</div><div class="l">Clientes</div></div>
+        <div><div class="n" style="${atras?'color:var(--red)':''}">${atras}</div><div class="l">Atrasadas</div></div>
+        <div><div class="n">${hoje}</div><div class="l">Hoje</div></div>
+        <div><div class="n">${semana}</div><div class="l">Esta semana</div></div>
+        <div><div class="n">${items.length}</div><div class="l">No total</div></div>
       </div>
     </section>
-
-    ${boardTasks.length?`<section class="section">
-      <div class="eyebrow" style="margin-bottom:14px">Tarefas do processo</div>
-      <div class="col" style="gap:12px">${boardTasks.map(boardTaskRow).join('')}</div>
-    </section>`:''}
-
-    <section class="section">
-      ${tasks.length?`<div class="eyebrow" style="margin-bottom:14px">Conteúdos sob sua responsabilidade</div>`+groups.map(g=>`
-        <div style="margin-bottom:22px">
-          <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">${g.name}</div>
-          <div class="col" style="gap:12px">${g.items.map(taskRow).join('')}</div>
-        </div>`).join('')
-      : (boardTasks.length?'':`<div class="empty card pad">${U.icon('check')}<br>Nada pendente pra você agora. 🎉</div>`)}
-    </section>`;
+    ${items.length? secoes : `<section class="section"><div class="empty card pad">${U.icon('check')}<br>Nada pendente pra você agora. 🎉<br><button class="btn btn-sm btn-primary" style="margin-top:14px" onclick="openAdd()">${U.icon('plus')} Adicionar tarefa</button></div></section>`}`;
   U.reveal();
 }
 
-async function setStatus(cid,pid,postId,val){ await Store.setPostMeta(cid,pid,postId,{prod:val}); U.toast('Status atualizado'); }
+/* ações */
+async function moveBoard(cid,id,v){ await Store.updateBoardTask(cid,id,{status:v}); U.toast('Atualizado'); render(); }
+async function movePersonal(id,v){ await Store.updatePersonalTask(id,{status:v}); U.toast('Atualizado'); render(); }
+async function delPersonal(id){ if(!confirm('Excluir esta tarefa pessoal?')) return; await Store.deletePersonalTask(id); render(); }
+async function setPost(cid,pid,postId,v){ await Store.setPostMeta(cid,pid,postId,{prod:v}); U.toast('Status atualizado'); }
 async function concluir(cid,pid,postId){
   if(!confirm('Concluir sua parte? O item sai das suas tarefas e volta pro gestor repassar.')) return;
   await Store.concludePart(cid,pid,postId); U.toast('Parte concluída ✅'); render();
 }
 
+/* nova tarefa */
+function openAdd(){
+  const dest=document.getElementById('a-dest');
+  dest.innerHTML='<option value="pessoal">— Pessoal / avulsa —</option>'+Data.activeClients().map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('a-title').value=''; document.getElementById('a-prazo').value=''; document.getElementById('a-prio').value='normal';
+  openModal('addModal');
+}
+async function addTask(){
+  const title=document.getElementById('a-title').value.trim(); if(!title){ U.toast('Escreva a tarefa'); return; }
+  const dest=document.getElementById('a-dest').value;
+  const prazo=document.getElementById('a-prazo').value||'';
+  const prio=document.getElementById('a-prio').value;
+  if(dest==='pessoal'){ await Store.addPersonalTask({ owner:NAME, title, prazo, prioridade:prio }); }
+  else { await Store.addBoardTask(dest, { title, status:'nao', responsavel:NAME, fim:prazo, prioridade:prio }); }
+  closeModals(); U.toast('Tarefa adicionada'); render();
+}
+
+function openModal(id){document.getElementById("scrim").classList.add("open");document.getElementById(id).classList.add("open");}
+function closeModals(e){if(e&&e.target.closest(".modal"))return;
+  document.querySelectorAll(".modal").forEach(m=>m.classList.remove("open"));
+  document.getElementById("scrim").classList.remove("open");}
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModals();});
+
 function start(){
-  USER=Auth.user();
+  USER=Auth.user(); NAME=USER?USER.name:'';
+  document.getElementById("ax").innerHTML=U.icon("x");
   document.getElementById("homeLink").href=U.homeHref();
-  document.getElementById("rolelbl").textContent = U.isGestor()?'gestor':(Data.funcaoOf(USER.name)||'equipe');
+  document.getElementById("rolelbl").textContent = U.isGestor()?'gestor':(Data.funcaoOf(NAME)||'equipe');
   render();
 }
 U.boot(start, {op:true});

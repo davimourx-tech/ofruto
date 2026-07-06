@@ -31,6 +31,8 @@
     <div class="row" style="gap:12px">
       <div class="field grow"><label>Início</label><input class="input" type="date" id="b-inicio"></div>
       <div class="field grow"><label>Fim (prazo)</label><input class="input" type="date" id="b-fim"></div>
+      <div class="field grow"><label>Prioridade</label>
+        <select class="input" id="b-prio"><option value="normal">Normal</option><option value="alta">Alta</option></select></div>
     </div>
   </div>
   <div class="foot">
@@ -177,9 +179,9 @@ function openBoard(id){
   document.getElementById('b-resp').innerHTML=respOpts(t.responsavel);
   document.getElementById('b-status').innerHTML=BOARD_COLS.map(c=>`<option value="${c.key}" ${(t.status||'nao')===c.key?'selected':''}>${c.label}</option>`).join('');
   bset('title',t.title); bset('desc',t.desc||''); bset('resp',t.responsavel||''); bset('status',t.status||'nao');
-  bset('inicio',t.inicio||''); bset('fim',t.fim||'');
+  bset('inicio',t.inicio||''); bset('fim',t.fim||''); bset('prio',t.prioridade||'normal');
   const canMove = GESTOR || t.responsavel===USER;
-  ['b-title','b-desc','b-resp','b-inicio','b-fim'].forEach(id=>document.getElementById(id).disabled=!GESTOR);
+  ['b-title','b-desc','b-resp','b-inicio','b-fim','b-prio'].forEach(id=>document.getElementById(id).disabled=!GESTOR);
   document.getElementById('b-status').disabled=!canMove;
   document.getElementById('b-del').style.display=GESTOR?'':'none';
   openModal('boardModal');
@@ -190,7 +192,7 @@ async function saveBoardTask(){
   if(!EDIT_BOARD) return;
   const patch = GESTOR
     ? { title:bget('title').trim()||'Sem título', desc:bget('desc').trim(), responsavel:bget('resp'),
-        status:bget('status'), inicio:bget('inicio')||'', fim:bget('fim')||'' }
+        status:bget('status'), inicio:bget('inicio')||'', fim:bget('fim')||'', prioridade:bget('prio') }
     : { status:bget('status') };   // membro só muda status
   await Store.updateBoardTask(CID,EDIT_BOARD,patch);
   closeModals(); U.toast('Salvo'); render();

@@ -237,6 +237,8 @@ const Data = {
     });
     return out;
   },
+  /* tarefas pessoais/avulsas de uma pessoa (não concluídas) */
+  personalTasksOf: (owner) => (DB.personal||[]).filter(p=>p.owner===owner && p.status!=='concluido'),
   /* carga de trabalho unificada por pessoa: conteúdos (posts) + tarefas do quadro */
   workloadByPerson: () => {
     const map={}; const add=(n,it)=>{ if(!n) return; (map[n]=map[n]||[]).push(it); };
@@ -364,7 +366,9 @@ const U = {
       pinterest:'<circle cx="12" cy="12" r="9"/><path d="M11.2 16.4 12.4 11M10.6 11.2a2 2 0 1 1 3.2 1.7c-1 .8-2.4.5-2.8-.7"/>',
       idea:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2h5c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/>',
       file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h8M8 9h2"/>',
-      download:'<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>'
+      download:'<path d="M12 4v12M7 11l5 5 5-5M5 20h14"/>',
+      sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+      moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/>'
     };
     return `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${p[name]||""}</svg>`;
   }
@@ -412,17 +416,19 @@ const Store = {
     if(this.demo()){ this._loaded=true; return; }   // MODO DEMO: mantém o seed
     try{
       const sb=this.sb;
-      const [cRes,pRes,xRes,tRes,eRes,mRes] = await Promise.all([
+      const [cRes,pRes,xRes,tRes,eRes,mRes,psRes] = await Promise.all([
         sb.from('clients').select('*').order('created_at',{ascending:true}),
         sb.from('projects').select('*').order('sort',{ascending:true}),
         sb.from('posts').select('*').order('sort',{ascending:true}),
         sb.from('tasks').select('*').order('sort',{ascending:true}),
         sb.from('events').select('*').order('date',{ascending:true}),
-        sb.from('team').select('*').order('created_at',{ascending:true})
+        sb.from('team').select('*').order('created_at',{ascending:true}),
+        sb.from('personal_tasks').select('*').order('created_at',{ascending:true})
       ]);
       const clients=cRes.data||[], projects=pRes.data||[], posts=xRes.data||[], tasks=(tRes&&tRes.data)||[];
       DB.events = (eRes&&eRes.data)||[];
       DB.team = (mRes&&mRes.data)||[];
+      DB.personal = (psRes&&psRes.data)||[];
       DB.clients = clients.map(c=>({
         id:c.id, token:c.token, name:c.name, handle:c.handle||'', color:c.color||'art-1',
         archived:!!c.archived, message:c.message||'', avatar:c.avatar||'', dados:c.dados||{}, stage:c.stage||'',
@@ -614,15 +620,26 @@ const Store = {
   async saveBoard(cid){ const c=Data.client(cid); if(!c) return;
     if(this.sb) await this.sb.from('clients').update({ board:c.board||[] }).eq('id',cid); },
   async seedBoard(cid){ const c=Data.client(cid); if(!c) return;
-    c.board=DEFAULT_BOARD.map((t,i)=>({ id:genId(), title:t, desc:'', status:'nao', responsavel:'', inicio:'', fim:'', sort:i }));
+    c.board=DEFAULT_BOARD.map((t,i)=>({ id:genId(), title:t, desc:'', status:'nao', responsavel:'', inicio:'', fim:'', prioridade:'normal', sort:i }));
     await this.saveBoard(cid); },
-  async addBoardTask(cid,{title,status}){ const c=Data.client(cid); if(!c) return; c.board=c.board||[];
-    const t={ id:genId(), title:title||'Nova tarefa', desc:'', status:status||'nao', responsavel:'', inicio:'', fim:'', sort:c.board.length };
+  async addBoardTask(cid,{title,status,responsavel,fim,prioridade}){ const c=Data.client(cid); if(!c) return; c.board=c.board||[];
+    const t={ id:genId(), title:title||'Nova tarefa', desc:'', status:status||'nao', responsavel:responsavel||'', inicio:'', fim:fim||'', prioridade:prioridade||'normal', sort:c.board.length };
     c.board.push(t); await this.saveBoard(cid); return t; },
   async updateBoardTask(cid,id,patch){ const c=Data.client(cid); const t=(c.board||[]).find(x=>x.id===id); if(!t) return;
     Object.assign(t,patch); await this.saveBoard(cid); },
   async deleteBoardTask(cid,id){ const c=Data.client(cid); const i=(c.board||[]).findIndex(x=>x.id===id); if(i>=0) c.board.splice(i,1);
     await this.saveBoard(cid); },
+
+  /* ---- Tarefas pessoais/avulsas (por pessoa) ---- */
+  async addPersonalTask({owner,title,prazo,prioridade}){
+    const t={ id:genId(), owner:owner||'', title:title||'Nova tarefa', prazo:prazo||null, prioridade:prioridade||'normal', status:'nao' };
+    DB.personal=DB.personal||[]; DB.personal.push(t);
+    if(this.sb) await this.sb.from('personal_tasks').insert(t);
+    return t; },
+  async updatePersonalTask(id,patch){ const t=(DB.personal||[]).find(x=>x.id===id); if(!t) return; Object.assign(t,patch);
+    if(this.sb) await this.sb.from('personal_tasks').update(patch).eq('id',id); },
+  async deletePersonalTask(id){ const i=(DB.personal||[]).findIndex(x=>x.id===id); if(i>=0) DB.personal.splice(i,1);
+    if(this.sb) await this.sb.from('personal_tasks').delete().eq('id',id); },
   async updateTeam(id,patch){ const m=(DB.team||[]).find(x=>x.id===id); if(!m) return; Object.assign(m,patch);
     if(this.sb) await this.sb.from('team').update(patch).eq('id',id); },
   async deleteTeam(id){ const i=(DB.team||[]).findIndex(x=>x.id===id); if(i>=0) DB.team.splice(i,1);
@@ -877,7 +894,27 @@ U.appNav = function(){
   document.body.classList.add('has-tabbar');
 };
 
-function initChrome(){ try{ paintBrand(); }catch(e){} try{ U.appNav(); }catch(e){} }
+/* ---- tema dia/noite ---- */
+(function(){ try{ if(localStorage.getItem('ofruto_theme')==='light') document.documentElement.setAttribute('data-theme','light'); }catch(e){} })();
+U.toggleTheme = function(){
+  const isLight=document.documentElement.getAttribute('data-theme')==='light';
+  const next=isLight?'dark':'light';
+  if(next==='light') document.documentElement.setAttribute('data-theme','light');
+  else document.documentElement.removeAttribute('data-theme');
+  try{ localStorage.setItem('ofruto_theme', next); }catch(e){}
+  document.querySelectorAll('.themebtn').forEach(b=>b.innerHTML=U.icon(next==='light'?'moon':'sun'));
+  if(window.Metrics && Metrics.el && Metrics.drawCharts){ try{ Metrics.drawCharts(); }catch(e){} }
+};
+U.mountTheme = function(){
+  const wrap=document.querySelector('.topbar .wrap'); if(!wrap || wrap.querySelector('.themebtn')) return;
+  const light=document.documentElement.getAttribute('data-theme')==='light';
+  const b=document.createElement('button'); b.className='btn-icon card themebtn';
+  b.setAttribute('aria-label','Alternar tema dia/noite'); b.title='Tema dia / noite';
+  b.innerHTML=U.icon(light?'moon':'sun'); b.onclick=U.toggleTheme;
+  wrap.appendChild(b);
+};
+
+function initChrome(){ try{ paintBrand(); }catch(e){} try{ U.mountTheme(); }catch(e){} try{ U.appNav(); }catch(e){} }
 if(document.readyState!=="loading") initChrome();
 else document.addEventListener("DOMContentLoaded", initChrome);
 

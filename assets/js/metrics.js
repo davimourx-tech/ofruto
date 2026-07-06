@@ -96,19 +96,25 @@
     drawCharts(){
       if(!window.Chart) return;
       (this._charts||[]).forEach(c=>{ try{ c.destroy(); }catch(e){} }); this._charts=[];
+      const light=document.documentElement.getAttribute('data-theme')==='light';
+      const AX=light?'rgba(0,0,0,.55)':'rgba(255,255,255,.55)';
+      const GR=light?'rgba(0,0,0,.09)':'rgba(255,255,255,.08)';
+      const INK=light?'#17171b':'#ffffff';
+      const BAR=light?'rgba(0,0,0,.18)':'rgba(255,255,255,.22)';
+      const DOU=light?['rgba(0,0,0,.82)','rgba(0,0,0,.5)','rgba(0,0,0,.24)']:['rgba(255,255,255,.85)','rgba(255,255,255,.5)','rgba(255,255,255,.26)'];
       const months=this.byMonth(), mEl=document.getElementById('mchart-month');
       if(mEl && months.length){
         this._charts.push(new Chart(mEl,{
           data:{ labels:months.map(m=>mesAbbr(m.month)), datasets:[
-            { type:'bar', label:'Posts', data:months.map(m=>m.posts), backgroundColor:'rgba(255,255,255,.22)', borderRadius:6, yAxisID:'y' },
-            { type:'line', label:'Engaj. médio (%)', data:months.map(m=>m.engAvg), borderColor:'#fff', backgroundColor:'#fff', tension:.3, spanGaps:true, pointRadius:3, yAxisID:'y1' }
+            { type:'bar', label:'Posts', data:months.map(m=>m.posts), backgroundColor:BAR, borderRadius:6, yAxisID:'y' },
+            { type:'line', label:'Engaj. médio (%)', data:months.map(m=>m.engAvg), borderColor:INK, backgroundColor:INK, tension:.3, spanGaps:true, pointRadius:3, yAxisID:'y1' }
           ]},
           options:{ responsive:true, maintainAspectRatio:false, interaction:{intersect:false,mode:'index'},
-            plugins:{ legend:{ labels:{ color:AXIS, boxWidth:12 } } },
+            plugins:{ legend:{ labels:{ color:AX, boxWidth:12 } } },
             scales:{
-              x:{ ticks:{color:AXIS}, grid:{color:GRID} },
-              y:{ position:'left', beginAtZero:true, ticks:{color:AXIS,precision:0}, grid:{color:GRID}, title:{display:true,text:'Posts',color:AXIS} },
-              y1:{ position:'right', beginAtZero:true, ticks:{color:AXIS,callback:v=>v+'%'}, grid:{drawOnChartArea:false}, title:{display:true,text:'Engaj.',color:AXIS} }
+              x:{ ticks:{color:AX}, grid:{color:GR} },
+              y:{ position:'left', beginAtZero:true, ticks:{color:AX,precision:0}, grid:{color:GR}, title:{display:true,text:'Posts',color:AX} },
+              y1:{ position:'right', beginAtZero:true, ticks:{color:AX,callback:v=>v+'%'}, grid:{drawOnChartArea:false}, title:{display:true,text:'Engaj.',color:AX} }
             } }
         }));
       }
@@ -116,9 +122,9 @@
       if(fEl && fmts.some(f=>f.posts)){
         this._charts.push(new Chart(fEl,{ type:'doughnut',
           data:{ labels:fmts.map(f=>f.label), datasets:[{ data:fmts.map(f=>f.posts),
-            backgroundColor:['rgba(255,255,255,.85)','rgba(255,255,255,.5)','rgba(255,255,255,.26)'], borderColor:'rgba(0,0,0,.35)', borderWidth:2 }] },
+            backgroundColor:DOU, borderColor:light?'rgba(255,255,255,.6)':'rgba(0,0,0,.35)', borderWidth:2 }] },
           options:{ responsive:true, maintainAspectRatio:false, cutout:'58%',
-            plugins:{ legend:{ position:'bottom', labels:{ color:AXIS, boxWidth:12 } } } }
+            plugins:{ legend:{ position:'bottom', labels:{ color:AX, boxWidth:12 } } } }
         }));
       }
     },

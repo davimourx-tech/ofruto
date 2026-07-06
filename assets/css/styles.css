@@ -32,6 +32,14 @@
   --violet:        #9b6bff;
   --violet-soft:   rgba(155,107,255,.14);
 
+  --accent:        #ffffff;
+  --accent-ink:    #0a0a0c;
+  --seal:          #ffffff;
+  --seal-ink:      #0a0a0c;
+  --bar-bg:        rgba(5,5,6,.66);
+  --tab-bg:        rgba(10,10,12,.82);
+  --page-glow:     rgba(255,255,255,.05);
+
   --r-sm: 12px;
   --r:    18px;
   --r-lg: 24px;
@@ -62,7 +70,7 @@ body{
   -webkit-font-smoothing:antialiased;
   overflow-x:hidden;width:100%;max-width:100%;position:relative;overscroll-behavior-x:none;
   background-image:
-    radial-gradient(900px 480px at 50% -8%, rgba(255,255,255,.05), transparent 62%);
+    radial-gradient(900px 480px at 50% -8%, var(--page-glow), transparent 62%);
   background-repeat:no-repeat;
   background-attachment:fixed;
 }
@@ -95,19 +103,22 @@ input,textarea,select{font-family:inherit}
 /* ---------- Topbar ---------- */
 .topbar{
   position:sticky;top:0;z-index:50;
-  background:rgba(5,5,6,.66);
+  background:var(--bar-bg);
   backdrop-filter:saturate(140%) blur(18px);
   border-bottom:1px solid var(--line);
 }
+.themebtn{margin-left:6px}
 .topbar .wrap{display:flex;align-items:center;justify-content:space-between;height:70px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:.02em;font-size:16px}
 .brand .dot{width:28px;height:28px;display:inline-grid;place-items:center;flex:none;background:none}
 .brand .dot svg{width:28px;height:28px;display:block;filter:drop-shadow(0 0 12px rgba(255,255,255,.14))}
+.brand .dot svg rect{fill:var(--seal)}
+.brand .dot svg path{stroke:var(--seal-ink)}
 .brand small{font-family:var(--mono);font-weight:400;letter-spacing:.3em;font-size:10px;color:var(--text-3);text-transform:uppercase}
 .topnav{display:flex;align-items:center;gap:4px}
 .topnav a{padding:8px 14px;border-radius:999px;color:var(--text-2);font-weight:400;font-size:14px;letter-spacing:.01em;transition:.2s var(--ease)}
 .topnav a:hover{color:var(--text)}
-.topnav a.active{color:#fff}
+.topnav a.active{color:var(--text)}
 
 /* ---------- Headings ---------- */
 .eyebrow{
@@ -132,8 +143,8 @@ h2.display{font-family:var(--serif);font-weight:700;line-height:1.06;letter-spac
 .btn:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.03)}
 .btn:active{transform:translateY(0)}
 .btn .ic{width:17px;height:17px}
-.btn-primary{background:#fff;border-color:#fff;color:#000;font-weight:600;box-shadow:0 12px 34px -16px rgba(255,255,255,.4)}
-.btn-primary:hover{background:#ececec;border-color:#ececec;color:#000}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600;box-shadow:0 12px 34px -16px rgba(0,0,0,.4)}
+.btn-primary:hover{filter:brightness(.93)}
 .btn-red{background:var(--red);border-color:var(--red);color:#fff;font-weight:600}
 .btn-red:hover{background:var(--red-600);border-color:var(--red-600);color:#fff}
 .btn-ghost{background:transparent;border-color:transparent;color:var(--text-2)}
@@ -514,7 +525,7 @@ input[type=checkbox]{width:19px;height:19px;accent-color:var(--red);flex:none;cu
    ============================================================ */
 .tabbar{
   position:fixed;left:0;right:0;bottom:0;z-index:55;display:none;
-  background:rgba(10,10,12,.82);backdrop-filter:blur(22px) saturate(150%);
+  background:var(--tab-bg);backdrop-filter:blur(22px) saturate(150%);
   border-top:1px solid var(--line);
   padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px));
 }
@@ -557,3 +568,40 @@ input[type=checkbox]{width:19px;height:19px;accent-color:var(--red);flex:none;cu
   padding:9px;border-radius:14px;border:1px dashed var(--line-2);background:transparent;
   color:var(--text-3);font-size:12.5px;font-weight:500;transition:.18s var(--ease)}
 .kadd:hover{color:var(--text);border-color:rgba(255,255,255,.3);background:rgba(255,255,255,.03)}
+
+/* ============================================================
+   Tema claro (dia) — override dos tokens. Ativado por [data-theme="light"]
+   ============================================================ */
+:root[data-theme="light"]{
+  --bg:            #f5f5f3;
+  --bg-2:          #ffffff;
+  --surface:       #ffffff;
+  --surface-2:     #f1f1ee;
+  --surface-3:     #e6e6e2;
+  --line:          rgba(0,0,0,.09);
+  --line-2:        rgba(0,0,0,.16);
+
+  --text:          #17171b;
+  --text-2:        #55555d;
+  --text-3:        #8a8a92;
+
+  --accent:        #17171b;
+  --accent-ink:    #ffffff;
+  --seal:          #17171b;
+  --seal-ink:      #ffffff;
+  --bar-bg:        rgba(255,255,255,.72);
+  --tab-bg:        rgba(255,255,255,.88);
+  --page-glow:     rgba(0,0,0,.04);
+
+  --shadow:    0 24px 60px -28px rgba(0,0,0,.28);
+  --shadow-sm: 0 10px 26px -18px rgba(0,0,0,.22);
+}
+:root[data-theme="light"] .card{
+  background:var(--surface);
+  box-shadow:0 1px 2px rgba(0,0,0,.04);
+}
+:root[data-theme="light"] ::selection{background:#17171b;color:#fff}
+:root[data-theme="light"] .glass{
+  border-color:rgba(0,0,0,.10);
+  background:linear-gradient(150deg, rgba(0,0,0,.05), rgba(0,0,0,.01) 40%, rgba(0,0,0,.03));
+}
