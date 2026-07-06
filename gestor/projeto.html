@@ -191,6 +191,12 @@ function render(){
           <p class="muted" style="margin-top:8px">${entrega?`${pr.total} ${unit}`:`${pr.total} ${unit} · ${pr.ok} aprovadas · ${pr.pct}% concluído`} · <a class="meta-sm" style="text-decoration:underline;cursor:pointer" onclick="editIntro()">editar mensagem de abertura</a></p>
         </div>
         <div class="row wrap" style="gap:10px">
+          <label class="meta-sm" style="display:flex;flex-direction:column;gap:4px">Tipo
+            <select class="input select-bare" style="width:auto" onchange="changeKind(this.value)">
+              <option value="conteudo"${project.kind==='conteudo'||!project.kind?' selected':''}>Conteúdo</option>
+              <option value="planejamento"${project.kind==='planejamento'?' selected':''}>Planejamento</option>
+              <option value="entrega"${project.kind==='entrega'?' selected':''}>Entregável</option>
+            </select></label>
           <label class="meta-sm" style="display:flex;flex-direction:column;gap:4px">Prazo de aprovação
             <input class="input" type="date" id="projDeadline" value="${project.deadline||''}" onchange="changeDeadline(this.value)" style="width:auto"></label>
           <select class="input select-bare" style="width:auto" id="projStatus" onchange="changeProjStatus(this.value)">
@@ -355,6 +361,11 @@ async function deletePost(){
   closeModals(); U.toast("Post excluído"); render();
 }
 async function changeProjStatus(v){ await Store.setProjectStatus(CID,PID,v); U.toast("Status do projeto atualizado"); render(); }
+async function changeKind(v){
+  const nomes={conteudo:'Conteúdo',planejamento:'Planejamento',entrega:'Entregável'};
+  if(!confirm('Converter este projeto para "'+nomes[v]+'"? Os itens continuam os mesmos (roteiro, briefing, etc.) — só muda como o cliente vê e aprova. Nada é recriado.')) return;
+  await Store.setProjectMeta(CID,PID,{kind:v}); project.kind=v; U.toast('Convertido para '+nomes[v]); render();
+}
 
 function openModal(id){document.getElementById("scrim").classList.add("open");document.getElementById(id).classList.add("open");}
 function closeModals(e){if(e&&e.target.closest(".modal"))return;
