@@ -171,26 +171,26 @@ function render(){
       </div>
 
       <div style="margin-top:24px">
-        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Processo criativo</div>
+        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Dia a dia</div>
+        <div class="navgrid stagger">
+          ${navcard('operacional-cliente','eye','Operacional','Quadro, produção & responsáveis')}
+          ${navcard('metricas','instagram','Métricas','Análise + resumo com IA')}
+          ${navcard('agenda','calendar','Agenda','Gravações & reuniões')}
+        </div>
+      </div>
+      <div style="margin-top:22px">
+        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Cliente & financeiro</div>
+        <div class="navgrid stagger">
+          ${navcard('dados','user','Dados','Contato, contrato, acessos')}
+          ${navcard('financeiro','check','Financeiro','Parcelas & cobrança')}
+        </div>
+      </div>
+      <div style="margin-top:22px">
+        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Estratégia (setup do cliente)</div>
         <div class="navgrid stagger">
           ${navcard('extracao','idea','Extração','Base estratégica')}
           ${navcard('diagnostico','sparkle','Diagnóstico','4 mapas com IA')}
           ${navcard('matriz','grid','Matriz','Pilares & gerar o mês')}
-        </div>
-      </div>
-      <div style="margin-top:22px">
-        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Operação & resultados</div>
-        <div class="navgrid stagger">
-          ${navcard('operacional-cliente','eye','Operacional','Produção & responsáveis')}
-          ${navcard('metricas','instagram','Métricas','Análise + resumo com IA')}
-        </div>
-      </div>
-      <div style="margin-top:22px">
-        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Cliente & administrativo</div>
-        <div class="navgrid stagger">
-          ${navcard('dados','user','Dados','Contato, contrato, acessos')}
-          ${navcard('financeiro','check','Financeiro','Parcelas & cobrança')}
-          ${navcard('agenda','calendar','Agenda','Gravações & reuniões')}
         </div>
       </div>
 
@@ -233,7 +233,10 @@ function onboardingSection(){
   return `
   <section class="section">
     <div class="row between" style="margin-bottom:14px">
-      <div class="eyebrow" style="margin:0">Onboarding do cliente</div>
+      <div class="col" style="gap:2px">
+        <div class="eyebrow" style="margin:0">Onboarding — setup inicial do cliente</div>
+        <span class="meta-sm">Checklist de entrada (contrato, acessos, briefing). Tarefas recorrentes ficam no Operacional.</span>
+      </div>
       ${total?`<span class="badge">${done}/${total} concluídos</span>`:''}
     </div>
     <div class="card pad">
@@ -272,9 +275,6 @@ async function dropTask(e){ e.preventDefault(); const target=e.currentTarget.dat
   if(!DRAG_ID||DRAG_ID===target) return;
   const t=client.tasks, from=t.findIndex(x=>x.id===DRAG_ID), to=t.findIndex(x=>x.id===target);
   if(from<0||to<0) return; const [m]=t.splice(from,1); t.splice(to,0,m);
-  await Store.reorderTasks(CID); render(); }
-async function moveTask(id,dir){ const t=client.tasks, i=t.findIndex(x=>x.id===id), j=i+dir;
-  if(j<0||j>=t.length) return; const tmp=t[i]; t[i]=t[j]; t[j]=tmp;
   await Store.reorderTasks(CID); render(); }
 async function seedOnboarding(){ await Store.seedOnboarding(CID); U.toast("Checklist criado"); render(); }
 async function addTask(){ const el=document.getElementById("newTask"); const v=el.value.trim();

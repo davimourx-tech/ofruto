@@ -42,7 +42,6 @@ function taskRow(t){
       <a class="grow" style="min-width:220px" href="projeto.html?c=${t.client.id}&p=${t.project.id}">
         <div class="row wrap" style="gap:8px;margin-bottom:6px">
           <span class="badge">${U.icon(tp.icon)} ${tp.label}</span>
-          ${t.project.etapa?`<span class="badge">${t.project.etapa}</span>`:''}
           ${t.post.prod?`<span class="badge is-ajustes"><span class="pip"></span>${t.post.prod}</span>`:''}
         </div>
         <strong style="font-size:16px">${t.post.title}</strong>

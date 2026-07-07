@@ -48,12 +48,10 @@
 <script>
 const CID=U.qs("c");
 let client, GESTOR=false, USER='', EDIT_BOARD=null;
-const STAGES=(window.APP_CONFIG&&APP_CONFIG.PROD_STAGES)||["Ideia","Edição","Gestão"];
 const TEAM=()=>Data.teamNames();
 const DONE=["Pronto","Postado"];
 function isDone(post){ return DONE.includes(post.prod); }
 
-function stageOpts(cur){ return `<option value="">— etapa —</option>`+STAGES.map(s=>`<option ${cur===s?'selected':''}>${s}</option>`).join(''); }
 function respOpts(cur){ return `<option value="">— responsável —</option>`+TEAM().map(m=>`<option ${cur===m?'selected':''}>${m}</option>`).join(''); }
 
 /* ---------- Quadro operacional (Kanban) ---------- */
@@ -110,7 +108,6 @@ function projectCard(p){
       <a class="grow" style="min-width:220px" href="projeto.html?c=${CID}&p=${p.id}">
         <div class="row wrap" style="gap:8px;margin-bottom:8px">
           <span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>
-          ${p.etapa?`<span class="badge">${p.etapa}</span>`:''}
           <span class="badge">${done}/${total} prontos</span>
         </div>
         <strong style="font-size:18px">${p.name}</strong>
@@ -119,9 +116,7 @@ function projectCard(p){
       <a class="btn btn-sm card nowrap" href="projeto.html?c=${CID}&p=${p.id}">Abrir ${U.icon('arrow')}</a>
     </div>
     <div class="divider"></div>
-    ${GESTOR ? `<div class="grid c3" style="gap:12px">
-      <label class="meta-sm" style="display:flex;flex-direction:column;gap:4px">Etapa do projeto
-        <select class="input" style="padding:8px 10px" onchange="setMeta('${p.id}','etapa',this.value)">${stageOpts(p.etapa)}</select></label>
+    ${GESTOR ? `<div class="grid c2" style="gap:12px">
       <label class="meta-sm" style="display:flex;flex-direction:column;gap:4px">Responsável atual
         <select class="input" style="padding:8px 10px" onchange="setMeta('${p.id}','responsavel',this.value)">${respOpts(p.responsavel)}</select></label>
       <div class="row" style="gap:8px;align-items:end">
@@ -132,7 +127,6 @@ function projectCard(p){
       </div>
     </div>`
     : `<div class="row wrap" style="gap:18px">
-        <div class="col meta-sm"><span>Etapa</span><strong style="color:var(--text)">${p.etapa||'—'}</strong></div>
         <div class="col meta-sm"><span>Responsável atual</span><strong style="color:var(--text)">${p.responsavel||'—'}</strong></div>
         <div class="col meta-sm"><span>Prazo</span><strong style="color:var(--text)">${prazo||'—'}</strong></div>
       </div>`}

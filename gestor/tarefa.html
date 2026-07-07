@@ -50,7 +50,6 @@ function render(){
       <a class="meta-sm" href="minhas-tarefas.html">← Minhas tarefas</a>
       <div class="row wrap" style="gap:8px;margin:14px 0 8px">
         <span class="badge">${U.icon(tp.icon)} ${tp.label}</span>
-        ${project.etapa?`<span class="badge">${project.etapa}</span>`:''}
         ${plan?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
       </div>
       <h1 class="display" style="font-size:clamp(24px,4vw,34px)">${post.title}</h1>

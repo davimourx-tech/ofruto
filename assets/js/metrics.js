@@ -15,7 +15,6 @@
   function snippet(s,n){ s=String(s||'').replace(/\s+/g,' ').trim(); return s.length>n? esc(s.slice(0,n))+'…' : esc(s); }
   const MMM=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   function mesAbbr(k){ const [y,m]=k.split('-'); return MMM[+m-1]+'/'+String(y).slice(2); }
-  const AXIS='rgba(255,255,255,.55)', GRID='rgba(255,255,255,.08)';
 
   const CATS = [
     { key:'todos',     label:'Visão global', match:()=>true },
