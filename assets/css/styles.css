@@ -115,7 +115,7 @@ input,textarea,select{font-family:inherit}
 .brand .dot svg rect{fill:var(--seal)}
 .brand .dot svg path{stroke:var(--seal-ink)}
 .brand small{font-family:var(--mono);font-weight:400;letter-spacing:.3em;font-size:10px;color:var(--text-3);text-transform:uppercase}
-.topnav{display:flex;align-items:center;gap:4px}
+.topnav{display:flex;align-items:center;gap:4px;margin-left:auto}
 .topnav a{padding:8px 14px;border-radius:999px;color:var(--text-2);font-weight:400;font-size:14px;letter-spacing:.01em;transition:.2s var(--ease)}
 .topnav a:hover{color:var(--text)}
 .topnav a.active{color:var(--text)}

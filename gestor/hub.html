@@ -32,7 +32,7 @@
     <div class="row between wrap" style="gap:18px">
       <div>
         <h1 class="display" id="greet">Seus clientes</h1>
-        <p class="lead" style="margin-top:14px">Acompanhe o progresso de aprovação de cada cliente, edite legendas, deixe observações e gere o link de visualização.</p>
+        <p class="lead" style="margin-top:12px">Seu painel do dia — clientes, produção e o que precisa da sua atenção.</p>
       </div>
       <button class="btn btn-primary btn-lg" onclick="openAdd()">
         <span id="i-plus"></span> Adicionar cliente
@@ -43,9 +43,18 @@
     <div class="grid c4 stagger" id="kpis" style="margin-top:26px"></div>
   </section>
 
-  <!-- Painel -->
+  <!-- Clientes ativos (foco principal) -->
+  <section class="section" style="padding-top:8px">
+    <div class="row between" style="margin-bottom:16px">
+      <h2 class="display" style="font-size:clamp(22px,3.4vw,30px)">Clientes ativos</h2>
+      <span class="badge" id="activeCount"></span>
+    </div>
+    <div class="col stagger" id="clientList" style="gap:14px"></div>
+  </section>
+
+  <!-- Painel resumo -->
   <section class="section">
-    <div class="eyebrow">Painel</div>
+    <div class="eyebrow">Resumo</div>
     <div class="grid c3 stagger" id="dashboard"></div>
   </section>
 
@@ -56,15 +65,6 @@
       <a class="btn btn-sm card" href="equipe.html">Ver equipe</a>
     </div>
     <div id="teamboard"></div>
-  </section>
-
-  <!-- Clientes ativos -->
-  <section class="section">
-    <div class="row between" style="margin-bottom:16px">
-      <h2 class="display">Clientes ativos</h2>
-      <span class="badge" id="activeCount"></span>
-    </div>
-    <div class="col stagger" id="clientList" style="gap:14px"></div>
   </section>
 
   <!-- Arquivados -->

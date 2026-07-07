@@ -137,12 +137,18 @@ function render(){
   document.getElementById("crumbs").innerHTML=`<a href="operacional.html">← Operacional</a>`;
   const projs=client.projects.filter(p=>p.kind!=='entrega');
   document.getElementById("root").innerHTML=`
-    <section class="section">
-      <a class="meta-sm" href="operacional.html">← Todos (operacional)</a>
-      <div class="eyebrow" style="margin:16px 0 0">Operacional</div>
+    <section class="section" style="padding-bottom:20px">
+      <div class="eyebrow">Operacional</div>
       <div class="row" style="gap:18px;margin-top:8px">${U.avatarHtml(client,'lg')}
         <div class="col"><h1 class="display" style="font-size:clamp(26px,4.5vw,40px)">${client.name}</h1>
-          <span class="muted">Quadro de tarefas, projetos e prazos</span></div></div>
+          <span class="muted">Projetos, quadro de tarefas e prazos</span></div></div>
+    </section>
+
+    <section class="section" style="padding-top:8px">
+      <div class="eyebrow" style="margin-bottom:16px">Projetos & conteúdos</div>
+      <div class="col stagger" style="gap:16px">
+        ${projs.length?projs.map(projectCard).join(''):'<div class="empty card pad">Nenhum projeto ainda.</div>'}
+      </div>
     </section>
 
     <section class="section">
@@ -151,13 +157,6 @@ function render(){
         ${(GESTOR&&(client.board||[]).length)?`<button class="btn btn-sm card" onclick="addBoard('nao')">${U.icon('plus')} Tarefa</button>`:''}
       </div>
       ${boardSection()}
-    </section>
-
-    <section class="section">
-      <div class="eyebrow" style="margin-bottom:16px">Projetos & conteúdos</div>
-      <div class="col stagger" style="gap:16px">
-        ${projs.length?projs.map(projectCard).join(''):'<div class="empty card pad">Nenhum projeto ainda.</div>'}
-      </div>
     </section>`;
   U.reveal();
 }
