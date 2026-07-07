@@ -82,13 +82,18 @@ function boardSection(){
 }
 function boardCard(t){
   const canMove = GESTOR || t.responsavel===USER;
-  const sel=BOARD_COLS.map(c=>`<option value="${c.key}" ${(t.status||'nao')===c.key?'selected':''}>${c.label}</option>`).join('');
+  const cur = t.status||'nao';
+  const curIdx = BOARD_COLS.findIndex(c=>c.key===cur);
+  const sel=BOARD_COLS.map(c=>`<option value="${c.key}" ${cur===c.key?'selected':''}>${c.label}</option>`).join('');
   const prazo=(t.inicio||t.fim)?`${t.inicio?U.fmtDateShort(t.inicio):'—'}→${t.fim?U.fmtDateShort(t.fim):'—'}`:'';
   const drag = GESTOR?`draggable="true" ondragstart="kDragStart(event)" ondragend="kDragEnd(event)" ondragover="kOver(event)" ondrop="kDropCard(event)"`:'';
-  return `<div class="kcard" data-id="${t.id}" data-status="${t.status||'nao'}" ${drag}>
+  const segs = BOARD_COLS.map((c,i)=>`<span class="kseg${i<=curIdx?' fill':''}"></span>`).join('');
+  const curLabel = (BOARD_COLS.find(c=>c.key===cur)||{}).label||'';
+  return `<div class="kcard k-${cur}" data-id="${t.id}" data-status="${cur}" ${drag}>
     <a onclick="openBoard('${t.id}')" style="cursor:${GESTOR?'grab':'pointer'};display:block"><strong style="font-size:14px">${t.title}</strong></a>
     ${t.desc?`<p class="meta-sm" style="margin-top:5px;line-height:1.45">${t.desc.slice(0,80)}${t.desc.length>80?'…':''}</p>`:''}
-    <div class="row wrap" style="gap:6px;margin-top:9px">
+    <div class="kflow f-${cur}"><span class="ksegs">${segs}</span><span class="kflow-lbl">${curLabel}</span></div>
+    <div class="row wrap" style="gap:6px;margin-top:10px">
       ${t.responsavel?`<span class="badge">${U.icon('user')} ${t.responsavel}${Data.funcaoOf(t.responsavel)?' · '+Data.funcaoOf(t.responsavel):''}</span>`:'<span class="badge is-breve">sem responsável</span>'}
       ${prazo?`<span class="badge">${U.icon('calendar')} ${prazo}</span>`:''}
     </div>

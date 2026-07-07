@@ -98,9 +98,9 @@
       const light=document.documentElement.getAttribute('data-theme')==='light';
       const AX=light?'rgba(0,0,0,.55)':'rgba(255,255,255,.55)';
       const GR=light?'rgba(0,0,0,.09)':'rgba(255,255,255,.08)';
-      const INK=light?'#17171b':'#ffffff';
-      const BAR=light?'rgba(0,0,0,.18)':'rgba(255,255,255,.22)';
-      const DOU=light?['rgba(0,0,0,.82)','rgba(0,0,0,.5)','rgba(0,0,0,.24)']:['rgba(255,255,255,.85)','rgba(255,255,255,.5)','rgba(255,255,255,.26)'];
+      const INK=light?'#4f9e1f':'#8fdc3f';
+      const BAR=light?'rgba(0,0,0,.16)':'rgba(255,255,255,.20)';
+      const DOU=light?['#4f9e1f','rgba(0,0,0,.4)','rgba(0,0,0,.2)']:['#8fdc3f','rgba(255,255,255,.5)','rgba(255,255,255,.24)'];
       const months=this.byMonth(), mEl=document.getElementById('mchart-month');
       if(mEl && months.length){
         this._charts.push(new Chart(mEl,{

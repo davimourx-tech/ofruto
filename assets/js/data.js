@@ -887,6 +887,7 @@ U.appNav = function(){
     }
   } else { return; }   // login/raiz: sem tab bar
   if(!tabs.length) return;
+  // ---- tab bar inferior (CELULAR) ----
   const nav = document.createElement('nav'); nav.className='tabbar';
   nav.innerHTML = '<div class="inner">'+tabs.map(t=>{
     const on = t.match && t.match.includes(file);
@@ -896,6 +897,27 @@ U.appNav = function(){
   }).join('')+'</div>';
   document.body.appendChild(nav);
   document.body.classList.add('has-tabbar');
+
+  // ---- menu lateral (COMPUTADOR) — só nas telas do gestor ----
+  if(path.includes('/gestor/')){
+    const home = (tabs.find(t=>!t.logout)||{}).href || 'hub.html';
+    const light = document.documentElement.getAttribute('data-theme')==='light';
+    const items = tabs.filter(t=>!t.logout).map(t=>{
+      const on = t.match && t.match.includes(file);
+      const ext = t.ext ? ' target="_blank" rel="noopener"' : '';
+      return `<a href="${t.href}"${ext} class="sb-item ${on?'on':''}"><span class="sb-ic">${U.icon(t.icon)}</span><span>${t.label}</span></a>`;
+    }).join('');
+    const aside = document.createElement('aside'); aside.className='sidebar';
+    aside.innerHTML =
+      `<a class="sb-logo" href="${home}"><span class="dot">${VERIFIED_SVG}</span> oFruto</a>
+       <nav class="sb-nav">${items}</nav>
+       <div class="sb-foot">
+         <button class="sb-item sb-theme" onclick="U.toggleTheme()"><span class="sb-ic">${U.icon(light?'moon':'sun')}</span><span>Tema ${light?'claro':'escuro'}</span></button>
+         <a href="#" onclick="Auth.logout();return false" class="sb-item"><span class="sb-ic">${U.icon('back')}</span><span>Sair</span></a>
+       </div>`;
+    document.body.appendChild(aside);
+    document.body.classList.add('has-sidebar');
+  }
 };
 
 /* ---- tema dia/noite ---- */
@@ -906,7 +928,9 @@ U.toggleTheme = function(){
   if(next==='light') document.documentElement.setAttribute('data-theme','light');
   else document.documentElement.removeAttribute('data-theme');
   try{ localStorage.setItem('ofruto_theme', next); }catch(e){}
-  document.querySelectorAll('.themebtn').forEach(b=>b.innerHTML=U.icon(next==='light'?'moon':'sun'));
+  const isL=next==='light';
+  document.querySelectorAll('.themebtn').forEach(b=>b.innerHTML=U.icon(isL?'moon':'sun'));
+  document.querySelectorAll('.sb-theme').forEach(b=>{ b.innerHTML=`<span class="sb-ic">${U.icon(isL?'moon':'sun')}</span><span>Tema ${isL?'claro':'escuro'}</span>`; });
   if(window.Metrics && Metrics.el && Metrics.drawCharts){ try{ Metrics.drawCharts(); }catch(e){} }
 };
 U.mountTheme = function(){
