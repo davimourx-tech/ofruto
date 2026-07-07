@@ -151,8 +151,33 @@ function projectCard(p){
   </div>`;
 }
 
+function fval(...keys){ const d=client.dados||{}, f=client.finance||{};
+  for(const k of keys){ if(d[k]!=null && d[k]!=='') return d[k]; if(f[k]!=null && f[k]!=='') return f[k]; } return ''; }
+function prop(ic,label,value,asLink){
+  if(!value) return '';
+  const isUrl=/^https?:/i.test(value);
+  const v = (asLink&&isUrl) ? `<a href="${value}" target="_blank" rel="noopener" style="color:var(--text)">abrir ${U.icon('arrow')}</a>` : `<strong style="color:var(--text)">${value}</strong>`;
+  return `<div class="kv"><span class="k">${U.icon(ic)} ${label}</span>${v}</div>`;
+}
+function quickInfo(){
+  const tel=fval('telefone'), email=fval('email'), pacote=fval('servico','pacote'), contrato=fval('contrato','drive');
+  const any = tel||email||pacote||contrato;
+  return `<div class="card pad">
+    <div class="row between" style="${any?'margin-bottom:12px':''}">
+      <div class="eyebrow" style="margin:0">Ficha rápida</div>
+      <a class="btn btn-sm card" href="dados.html?c=${CID}">${U.icon('edit')} Editar dados</a>
+    </div>
+    ${any?`<div class="grid c2" style="gap:4px 28px">
+      ${prop('user','Status',client.archived?'Arquivado':'Ativo')}
+      ${prop('chat','WhatsApp',tel)}
+      ${prop('message','E-mail',email)}
+      ${prop('check','Pacote',pacote)}
+      ${prop('link','Contrato / Drive',contrato,true)}
+    </div>`:`<p class="meta-sm">Ainda sem dados salvos. <a href="dados.html?c=${CID}" style="text-decoration:underline">Preencher agora</a>.</p>`}
+  </div>`;
+}
+
 function render(){
-  const pr = Data.progress(client);
   document.getElementById("root").innerHTML = `
     <section class="section">
       <a class="meta-sm" href="hub.html">← Todos os clientes</a>
@@ -169,46 +194,18 @@ function render(){
           <button class="btn btn-primary" onclick="openProj()">${U.icon("plus")} Novo projeto</button>
         </div>
       </div>
-
-      <div style="margin-top:24px">
-        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Dia a dia</div>
-        <div class="navgrid stagger">
-          ${navcard('operacional-cliente','eye','Operacional','Quadro, produção & responsáveis')}
-          ${navcard('metricas','instagram','Métricas','Análise + resumo com IA')}
-          ${navcard('agenda','calendar','Agenda','Gravações & reuniões')}
-        </div>
-      </div>
-      <div style="margin-top:22px">
-        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Cliente & financeiro</div>
-        <div class="navgrid stagger">
-          ${navcard('dados','user','Dados','Contato, contrato, acessos')}
-          ${navcard('financeiro','check','Financeiro','Parcelas & cobrança')}
-        </div>
-      </div>
-      <div style="margin-top:22px">
-        <div class="meta-sm" style="margin-bottom:10px;letter-spacing:.02em">Estratégia (setup do cliente)</div>
-        <div class="navgrid stagger">
-          ${navcard('extracao','idea','Extração','Base estratégica')}
-          ${navcard('diagnostico','sparkle','Diagnóstico','4 mapas com IA')}
-          ${navcard('matriz','grid','Matriz','Pilares & gerar o mês')}
-        </div>
-      </div>
-
-      <div class="grid c4 stagger" style="margin-top:22px">
-        ${kpi("Posts",pr.total,"grid","var(--text)")}
-        ${kpi("Aprovados",pr.ok,"check","var(--green)")}
-        ${kpi("Em ajustes",pr.adj+pr.rej,"clock","var(--amber)")}
-        ${kpi("Aguardando",pr.pend,"eye","var(--blue)")}
-      </div>
+      <div style="margin-top:20px">${quickInfo()}</div>
     </section>
 
     <section class="section">
-      <div class="card pad" style="background:var(--surface-2)">
-        <div class="row between">
-          <div class="eyebrow" style="margin:0">Mensagem fixada para o cliente</div>
-          <button class="btn btn-sm card" onclick="location.href='hub.html'">Editar no hub</button>
-        </div>
-        <p class="muted" style="margin-top:10px">${client.message? client.message : '<span class="dim">Nenhuma mensagem definida. (Edite pelo botão de mensagem no Hub.)</span>'}</p>
+      <div class="eyebrow">Onde operar</div>
+      <div class="grid c3 stagger">
+        ${navcard('operacional-cliente','eye','Sistema Operacional','Quadro, projetos & produção do mês')}
+        ${navcard('estrategia','idea','Base Estratégica','Extração, diagnóstico & matriz')}
+        ${navcard('metricas','instagram','Resultados','Métricas + resumo com IA')}
+        ${navcard('agenda','calendar','Agenda','Gravações & reuniões')}
+        ${navcard('financeiro','check','Financeiro','Contrato, parcelas & cobrança')}
+        ${navcard('dados','user','Dados & Acessos','Contato, contrato, logins')}
       </div>
     </section>
 

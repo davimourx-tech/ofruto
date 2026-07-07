@@ -35,38 +35,71 @@ function acessoRow(a,i){
   </div>`;
 }
 
-function render(){
-  document.getElementById("crumbs").innerHTML=`<a href="cliente.html?c=${CID}">← ${client.name}</a>`;
-  document.getElementById("root").innerHTML=`
-    <section class="section">
-      <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
-      <div class="eyebrow" style="margin:16px 0 0">Dados do cliente</div>
-      <div class="row" style="gap:18px;margin-top:12px">
-        ${U.avatarHtml(client,'lg')}
-        <div class="col">
-          <h1 class="display" style="font-size:clamp(26px,4.5vw,40px)">${client.name}</h1>
-          <span class="muted">${client.handle}</span>
-        </div>
-      </div>
-    </section>
+let EDIT=false;
+function setEdit(x){ EDIT=x;
+  if(!x){ DADOS=JSON.parse(JSON.stringify(client.dados||{})); ACESSOS=(DADOS.acessos||[]).map(a=>Object.assign({},a)); }
+  render(); }
+function prop(ic,label,value,asLink){ if(!value) return '';
+  const isUrl=/^https?:/i.test(value);
+  const vv=(asLink&&isUrl)?`<a href="${value}" target="_blank" rel="noopener" style="color:var(--text)">abrir ${U.icon('arrow')}</a>`:`<strong style="color:var(--text)">${value}</strong>`;
+  return `<div class="kv"><span class="k">${U.icon(ic)} ${label}</span>${vv}</div>`; }
 
+function header(){ return `<section class="section">
+  <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
+  <div class="eyebrow" style="margin:16px 0 0">Dados do cliente</div>
+  <div class="row" style="gap:18px;margin-top:12px">${U.avatarHtml(client,'lg')}
+    <div class="col"><h1 class="display" style="font-size:clamp(26px,4.5vw,40px)">${client.name}</h1>
+      <span class="muted">${client.handle}</span></div></div>
+</section>`; }
+
+function fotoSection(){ return `<section class="section" style="max-width:760px">
+  <div class="card pad">
+    <div class="eyebrow" style="margin-bottom:14px">Foto / ícone do cliente</div>
+    <div class="row" style="gap:14px;align-items:center">
+      <div class="proj-thumb" id="av-preview" style="border-radius:50%"></div>
+      <label class="btn btn-sm card" for="av-file" id="av-uplabel" style="cursor:pointer"></label>
+      <input type="file" id="av-file" accept="image/*" class="hidden" onchange="avFile(this)">
+      <button class="btn btn-sm btn-ghost" onclick="avClear()">Remover</button>
+    </div>
+  </div></section>`; }
+
+function readBody(){
+  const d=DADOS, any=d.telefone||d.email||d.servico||d.contrato||d.obs;
+  const props = any?`<div class="col" style="gap:2px">
+    ${prop('chat','WhatsApp',d.telefone)}
+    ${prop('message','E-mail',d.email)}
+    ${prop('check','Serviço / pacote',d.servico)}
+    ${prop('link','Contrato / Drive',d.contrato,true)}
+    ${d.obs?`<div class="kv" style="align-items:flex-start"><span class="k">${U.icon('idea')} Observações</span><span style="max-width:60%;text-align:right;color:var(--text)">${d.obs}</span></div>`:''}
+  </div>`:`<p class="meta-sm">Sem dados salvos ainda. Clique em Editar.</p>`;
+  const acc = ACESSOS.length?`<div class="col" style="gap:8px">${ACESSOS.map(a=>`
+    <div class="card pad row between" style="background:var(--surface-2)">
+      <div class="col"><strong>${a.rede||'—'}</strong><span class="meta-sm">${a.login||'—'}</span></div>
+      <span class="meta-sm">${a.senha?'•'.repeat(Math.min(a.senha.length,8)):'—'}</span>
+    </div>`).join('')}</div>`:'<p class="meta-sm">Nenhum acesso salvo.</p>';
+  return `
     <section class="section" style="max-width:760px">
       <div class="card pad">
-        <div class="eyebrow" style="margin-bottom:14px">Foto / ícone do cliente</div>
-        <div class="row" style="gap:14px;align-items:center">
-          <div class="proj-thumb" id="av-preview" style="border-radius:50%"></div>
-          <label class="btn btn-sm card" for="av-file" id="av-uplabel" style="cursor:pointer"></label>
-          <input type="file" id="av-file" accept="image/*" class="hidden" onchange="avFile(this)">
-          <button class="btn btn-sm btn-ghost" onclick="avClear()">Remover</button>
+        <div class="row between" style="margin-bottom:14px">
+          <div class="eyebrow" style="margin:0">Contato & contrato</div>
+          <button class="btn btn-sm btn-primary" onclick="setEdit(true)">${U.icon('edit')} Editar</button>
         </div>
+        ${props}
       </div>
     </section>
+    <section class="section" style="max-width:760px">
+      <div class="eyebrow" style="margin-bottom:12px">Acessos das redes</div>
+      ${acc}
+    </section>`;
+}
 
+function editBody(){
+  return `
     <section class="section" style="max-width:760px">
       <div class="card pad">
         <div class="eyebrow" style="margin-bottom:14px">Contato & contrato</div>
         <div class="grid c2">
-          <div class="field"><label>Telefone / WhatsApp</label><input class="input" id="d-tel" value="${DADOS.telefone||''}" placeholder="55 19 99999-9999"></div>
+          <div class="field"><label>Telefone / WhatsApp</label><input class="input" id="d-tel" value="${(DADOS.telefone||'').replace(/"/g,'&quot;')}" placeholder="55 19 99999-9999"></div>
           <div class="field"><label>E-mail</label><input class="input" id="d-email" value="${(DADOS.email||'').replace(/"/g,'&quot;')}" placeholder="cliente@email.com"></div>
           <div class="field"><label>Serviço / pacote</label><input class="input" id="d-serv" value="${(DADOS.servico||'').replace(/"/g,'&quot;')}" placeholder="Ex.: Pacote Raízes"></div>
           <div class="field"><label>Link do contrato (Drive)</label><input class="input" id="d-contrato" value="${(DADOS.contrato||'').replace(/"/g,'&quot;')}" placeholder="https://..."></div>
@@ -74,7 +107,6 @@ function render(){
         <div class="field"><label>Observações</label><textarea class="textarea" id="d-obs" style="min-height:70px" placeholder="Qualquer nota importante do cliente...">${DADOS.obs||''}</textarea></div>
       </div>
     </section>
-
     <section class="section" style="max-width:760px">
       <div class="card pad">
         <div class="row between" style="margin-bottom:6px">
@@ -84,8 +116,16 @@ function render(){
         <p class="hint" style="margin-bottom:12px">⚠️ Guardado do jeito simples. Para senhas com segurança total, a gente sobe o login de verdade depois.</p>
         <div class="col" id="acessos">${ACESSOS.length?ACESSOS.map(acessoRow).join(''):'<p class="meta-sm">Nenhum acesso salvo.</p>'}</div>
       </div>
-      <button class="btn btn-primary" style="margin-top:16px" onclick="salvar()">${U.icon('check')} Salvar dados</button>
+      <div class="row" style="gap:10px;margin-top:16px">
+        <button class="btn btn-primary" onclick="salvar()">${U.icon('check')} Salvar dados</button>
+        <button class="btn btn-ghost" onclick="setEdit(false)">Cancelar</button>
+      </div>
     </section>`;
+}
+
+function render(){
+  document.getElementById("crumbs").innerHTML=`<a href="cliente.html?c=${CID}">← ${client.name}</a>`;
+  document.getElementById("root").innerHTML = header() + fotoSection() + (EDIT?editBody():readBody());
   avRefresh();
   document.getElementById("av-uplabel").innerHTML=U.icon("upload")+" Enviar foto";
 }
@@ -106,7 +146,7 @@ function renderAcessos(){ document.getElementById("acessos").innerHTML=ACESSOS.l
 async function salvar(){
   DADOS.telefone=v('d-tel').trim(); DADOS.email=v('d-email').trim(); DADOS.servico=v('d-serv').trim();
   DADOS.contrato=v('d-contrato').trim(); DADOS.obs=v('d-obs').trim(); DADOS.acessos=ACESSOS.filter(a=>a.rede||a.login||a.senha);
-  await Store.setDados(CID, DADOS); U.toast('Dados salvos ✅');
+  await Store.setDados(CID, DADOS); EDIT=false; U.toast('Dados salvos ✅'); render();
 }
 
 function start(){
@@ -114,6 +154,7 @@ function start(){
   if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="hub.html">Voltar</a></div>'; return; }
   DADOS=JSON.parse(JSON.stringify(client.dados||{}));
   ACESSOS=(DADOS.acessos||[]).map(a=>Object.assign({},a));
+  EDIT = !(DADOS.telefone||DADOS.email||DADOS.servico||DADOS.contrato||ACESSOS.length);
   render();
 }
 U.boot(start, {manager:true});
