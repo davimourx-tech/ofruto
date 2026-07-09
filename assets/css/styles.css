@@ -3,7 +3,7 @@
    Design System (estética YOKO: preto / vermelho / movimento)
    ============================================================ */
 
-@import url('https://api.fontshare.com/v2/css?f[]=clash-grotesk@400,500,600,700&f[]=general-sans@400,500,600,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800&display=swap');
 
 /* ---------- Tokens (estética FocusFlow: preto + verde-limão) ---------- */
 :root{
@@ -50,9 +50,9 @@
   --shadow:    0 24px 64px -24px rgba(0,0,0,.85);
   --shadow-sm: 0 10px 30px -16px rgba(0,0,0,.7);
 
-  --serif: 'Clash Grotesk', 'Helvetica Neue', Arial, sans-serif;
-  --sans:  'General Sans', 'Helvetica Neue', Arial, sans-serif;
-  --mono:  'General Sans', ui-monospace, Menlo, monospace;
+  --serif: 'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif;
+  --sans:  'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif;
+  --mono:  'Plus Jakarta Sans', ui-monospace, Menlo, monospace;
 
   --maxw: 1200px;
   --ease: cubic-bezier(.22,.61,.36,1);
@@ -668,3 +668,103 @@ input[type=checkbox]{width:19px;height:19px;accent-color:var(--red);flex:none;cu
 .kcard.k-concluido{border-color:rgba(143,220,63,.32);
   background:linear-gradient(180deg,rgba(143,220,63,.07),transparent 70%),var(--surface-2)}
 .kcard.k-concluido strong{color:var(--text)}
+
+/* ============================================================
+   WORKSPACE (estilo ClickUp / FocusFlow) — página única
+   ============================================================ */
+body.ws-body{overflow:hidden}
+.ws{display:grid;grid-template-columns:262px 1fr;height:100vh;height:100dvh;width:100%}
+/* ---- coluna lateral ---- */
+.ws-side{display:flex;flex-direction:column;gap:6px;background:var(--bg-2);
+  border-right:1px solid var(--line);padding:16px 12px;min-height:0;overflow-y:auto}
+.ws-brand{display:flex;align-items:center;gap:10px;font-family:var(--serif);font-weight:800;
+  font-size:19px;letter-spacing:-.02em;padding:6px 8px 12px}
+.ws-brand .dot{width:26px;height:26px;display:inline-grid;place-items:center;flex:none}
+.ws-brand .dot svg{width:26px;height:26px}
+.ws-brand .dot svg rect{fill:var(--seal)} .ws-brand .dot svg path{stroke:var(--seal-ink)}
+.ws-search{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;padding:10px 13px;color:var(--text-3);margin-bottom:8px}
+.ws-search input{background:none;border:none;outline:none;color:var(--text);font-size:13.5px;width:100%}
+.ws-search input::placeholder{color:var(--text-3)}
+.ws-cap{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);
+  padding:14px 10px 6px}
+.ws-item{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:13px;color:var(--text-2);
+  font-size:14px;font-weight:500;cursor:pointer;transition:.16s var(--ease);width:100%;text-align:left;border:none;background:none}
+.ws-item:hover{background:var(--surface);color:var(--text)}
+.ws-ic{width:32px;height:32px;flex:none;display:grid;place-items:center;border-radius:9px;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--text-2);transition:.16s var(--ease)}
+.ws-ic .ic{width:17px;height:17px}
+.ws-item .ws-lbl{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws-count{font-size:12px;font-weight:600;color:var(--text-3);background:var(--surface-2);
+  border-radius:999px;padding:1px 9px;min-width:24px;text-align:center}
+.ws-item.on{color:var(--text)}
+.ws-item.on .ws-ic{background:var(--accent-grad);border-color:transparent;color:var(--accent-ink);
+  box-shadow:0 6px 18px -8px rgba(143,220,63,.6)}
+.ws-item.on .ws-count{color:var(--accent-ink);background:var(--green-soft)}
+.ws-foot{margin-top:auto;display:flex;flex-direction:column;gap:2px;padding-top:10px;border-top:1px solid var(--line)}
+/* ---- painel de conteúdo ---- */
+.ws-main{min-width:0;min-height:0;overflow-y:auto;padding:26px 30px 60px}
+.ws-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.ws-title{font-family:var(--serif);font-weight:800;letter-spacing:-.025em;font-size:clamp(24px,3vw,32px)}
+.ws-sub{color:var(--text-2);font-size:14px;margin-top:3px}
+/* segmented control (All tasks / Updates) */
+.seg{display:inline-flex;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:4px}
+.seg button{padding:8px 18px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--text-2);white-space:nowrap}
+.seg button.on{background:var(--text);color:var(--bg)}
+.seg.green button.on{background:var(--accent-grad);color:var(--accent-ink)}
+/* toggle kanban/lista */
+.vtoggle{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:3px}
+.vtoggle button{width:38px;height:34px;display:grid;place-items:center;border-radius:9px;color:var(--text-3)}
+.vtoggle button.on{background:var(--surface-3);color:var(--text)}
+/* linha estilo FocusFlow (document branches) */
+.wrow{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid var(--line);
+  border-radius:16px;padding:15px 18px;transition:.18s var(--ease);cursor:pointer}
+.wrow:hover{border-color:var(--line-2);transform:translateY(-1px)}
+.wrow.sel{border-color:rgba(143,220,63,.4);background:linear-gradient(180deg,rgba(143,220,63,.06),transparent 70%),var(--surface-2)}
+.wrow .wr-radio{width:20px;height:20px;border-radius:50%;border:2px solid var(--line-2);flex:none}
+.wrow.sel .wr-radio{border-color:var(--accent);background:var(--accent);display:grid;place-items:center}
+.wrow.sel .wr-radio svg{width:12px;height:12px;color:var(--accent-ink)}
+.wr-main{flex:1;min-width:0}
+.wr-title{font-weight:600;font-size:15px}
+.wr-meta{color:var(--text-3);font-size:12.5px;margin-top:2px}
+.wr-tags{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+.wtag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-2);
+  border:1px solid var(--line-2);border-radius:999px;padding:5px 11px}
+.wtag.green{color:var(--green);border-color:rgba(143,220,63,.4)}
+.wr-side{display:flex;align-items:center;gap:14px;flex:none}
+/* barra de produtividade (equipe) */
+.prog{height:7px;border-radius:99px;background:var(--surface-3);overflow:hidden}
+.prog>i{display:block;height:100%;border-radius:99px;background:var(--accent-grad)}
+.tmember{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px}
+.tmember:hover{border-color:var(--line-2)}
+/* mini status flow pill (assigned -> accepted) */
+.flowpill{display:inline-flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--line);
+  border-radius:12px;padding:6px 8px}
+.flowpill .st{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;color:var(--text-2);background:var(--surface-3);border-radius:8px;padding:5px 10px}
+.flowpill .st.done{background:var(--accent-grad);color:var(--accent-ink)}
+.flowpill .st.prog{background:var(--blue);color:#fff}
+.flowpill .arw{color:var(--text-3);display:flex}
+.flowpill .arw svg{width:16px;height:16px}
+/* dot de time colorido */
+.tdot{width:12px;height:12px;border-radius:50%;flex:none}
+/* responsivo: vira app de celular */
+@media (max-width:820px){
+  body.ws-body{overflow:auto}
+  .ws{grid-template-columns:1fr;height:auto;min-height:100dvh}
+  .ws-side{position:fixed;bottom:0;left:0;right:0;z-index:60;flex-direction:row;overflow-x:auto;
+    border-right:none;border-top:1px solid var(--line);padding:8px 10px;gap:4px;
+    background:var(--tab-bg);backdrop-filter:saturate(140%) blur(18px)}
+  .ws-brand,.ws-search,.ws-cap,.ws-count,.ws-foot,.ws-item .ws-lbl{display:none}
+  .ws-item{flex-direction:column;gap:4px;padding:4px;width:auto;min-width:60px;font-size:10px}
+  .ws-item .ws-lbl{display:block;font-size:10px}
+  .ws-nav{display:flex;gap:4px;width:100%;justify-content:space-around}
+  .ws-main{padding:20px 16px 96px;height:auto;overflow:visible}
+}
+
+/* modal do workspace (overlay dinâmico) */
+.wsmodal-back{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.62);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;padding:20px;animation:wsfade .18s ease}
+.wsmodal{width:100%;max-width:460px;max-height:88vh;overflow-y:auto}
+@keyframes wsfade{from{opacity:0}to{opacity:1}}
+@media (max-width:820px){ .wsmodal-back{align-items:flex-end;padding:0} .wsmodal{max-width:none;border-radius:20px 20px 0 0} }

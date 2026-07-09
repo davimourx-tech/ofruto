@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>oFruto · Workspace</title>
+<link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body class="ws-body" data-nochrome>
+
+<div class="ws">
+  <aside class="ws-side">
+    <a class="ws-brand" href="workspace.html"><span class="dot"></span> oFruto</a>
+    <div class="ws-search">${''}
+      <span style="display:flex">${''}</span>
+      <input id="ws-q" placeholder="Buscar cliente, tarefa…" oninput="onSearch(this.value)">
+    </div>
+    <nav class="ws-nav" id="ws-nav"></nav>
+    <div class="ws-foot">
+      <button class="ws-item" onclick="U.toggleTheme()"><span class="ws-ic" id="ws-theme-ic"></span><span class="ws-lbl">Tema</span></button>
+      <button class="ws-item" onclick="Auth.logout()"><span class="ws-ic"></span><span class="ws-lbl">Sair</span></button>
+    </div>
+  </aside>
+  <main class="ws-main" id="panel"></main>
+</div>
+
+<div id="modal-root"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../assets/js/config.js"></script>
+<script src="../assets/js/data.js"></script>
+<script>
+/* ============================================================
+   WORKSPACE — app único estilo ClickUp/FocusFlow
+   Menu à esquerda troca a seção do painel (sem recarregar).
+   ============================================================ */
+const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const TEAM_DOTS = ['#f0466e','#f2c230','#3b82f6','#8fdc3f','#9b6bff','#25d366'];
+let SOP_CID=null, SOP_VIEW='kanban', SEARCH='';
+
+/* ---------- roteamento por hash ---------- */
+function parseHash(){
+  const h=(location.hash||'#overview').replace(/^#/,'');
+  const [sec, arg] = h.split('/');
+  return { sec:sec||'overview', arg:arg||'' };
+}
+function go(hash){ location.hash=hash; }
+
+const NAV = [
+  { key:'overview', icon:'grid',     label:'Visão geral' },
+  { key:'clientes', icon:'user',     label:'Clientes',   count:()=>Data.activeClients().length },
+  { key:'equipe',   icon:'megaphone',label:'Equipe',     count:()=>Data.teamNames().length },
+  { key:'sop',      icon:'layers',   label:'SOP · Operacional' },
+  { key:'agenda',   icon:'calendar', label:'Agenda' }
+];
+
+function renderNav(active){
+  document.getElementById('ws-nav').innerHTML =
+    `<div class="ws-cap">Workspace</div>` +
+    NAV.map(n=>{
+      const on = active===n.key;
+      const c = n.count ? `<span class="ws-count">${n.count()}</span>` : '';
+      return `<button class="ws-item ${on?'on':''}" onclick="go('#${n.key}')">
+        <span class="ws-ic">${U.icon(n.icon)}</span><span class="ws-lbl">${n.label}</span>${c}</button>`;
+    }).join('');
+  const light=document.documentElement.getAttribute('data-theme')==='light';
+  document.getElementById('ws-theme-ic').innerHTML=U.icon(light?'moon':'sun');
+  document.querySelector('.ws-foot .ws-item:last-child .ws-ic').innerHTML=U.icon('back');
+  document.querySelector('.ws-brand .dot').innerHTML=VERIFIED_SVG;
+  // ícone lupa da busca
+  const sIc=document.querySelector('.ws-search span'); if(sIc) sIc.innerHTML=U.icon('eye');
+}
+
+/* ---------- render principal ---------- */
+function render(){
+  const {sec,arg}=parseHash();
+  renderNav(sec);
+  const p=document.getElementById('panel'); p.scrollTop=0;
+  if(sec==='clientes' && arg) return void(p.innerHTML=clienteDetail(arg), afterClient(arg));
+  if(sec==='overview') p.innerHTML=overview();
+  else if(sec==='clientes') p.innerHTML=clientesList();
+  else if(sec==='equipe') p.innerHTML=equipe();
+  else if(sec==='sop') p.innerHTML=sop(arg);
+  else if(sec==='agenda') p.innerHTML=agenda();
+  else p.innerHTML=overview();
+}
+window.addEventListener('hashchange', render);
+
+/* ============================================================
+   VISÃO GERAL
+   ============================================================ */
+function overview(){
+  const cs=Data.activeClients();
+  const wl=Data.workloadByPerson();
+  let emProd=0; Object.values(wl).forEach(a=>emProd+=a.length);
+  const asg=Data.assignments();
+  // financeiro a receber
+  let aReceber=0, prox=null;
+  cs.forEach(c=>{ (c.finance&&c.finance.parcelas||[]).forEach(pc=>{ if(!pc.paid){ aReceber+=Number(pc.valor||0);
+    if(!prox||pc.due<prox.due) prox={...pc, client:c}; } }); });
+  const nextEv=(Data.events()||[]).filter(e=>e.date>=todayISO()).sort((a,b)=>a.date.localeCompare(b.date))[0];
+  const stat=(ic,k,v)=>`<div class="card pad"><div class="row between"><span class="meta-sm">${k}</span><span class="dim">${U.icon(ic)}</span></div>
+    <div style="font-family:var(--serif);font-weight:800;font-size:30px;letter-spacing:-.02em;margin-top:8px">${v}</div></div>`;
+  const pend=[];
+  asg.unassigned.forEach(it=>pend.push({t:it.post.title, sub:`${it.client.name} · sem responsável`, tone:'amber', href:`#sop/${it.client.id}`}));
+  cs.forEach(c=>(c.board||[]).forEach(t=>{ if(t.status==='andamento') pend.push({t:t.title, sub:`${c.name} · ${t.responsavel||'sem responsável'}`, tone:'blue', href:`#sop/${c.id}`}); }));
+  return `
+  <div class="ws-head">
+    <div><div class="ws-title">Olá, ${esc((Auth.user()||{}).name||'')} 👋</div>
+      <div class="ws-sub">${U.greet().replace(/^./,m=>m.toUpperCase())} — aqui está o pulso da agência hoje.</div></div>
+  </div>
+  <div class="grid c4 stagger" style="gap:14px">
+    ${stat('user','Clientes ativos',cs.length)}
+    ${stat('layers','Tarefas em produção',emProd)}
+    ${stat('clock','A receber (aberto)',U.brl(aReceber))}
+    ${stat('calendar','Próximo evento',nextEv?U.fmtDateShort(nextEv.date):'—')}
+  </div>
+  <div style="margin-top:30px" class="row between">
+    <h2 class="display" style="font-size:22px">O que temos pra fazer</h2>
+    <button class="btn btn-sm card" onclick="go('#sop')">Ver operacional ${U.icon('arrow')}</button>
+  </div>
+  <div class="col" style="gap:10px;margin-top:14px">
+    ${pend.length? pend.slice(0,12).map(it=>`
+      <a class="wrow" href="${it.href}">
+        <span class="wr-radio"></span>
+        <div class="wr-main"><div class="wr-title">${esc(it.t)}</div><div class="wr-meta">${esc(it.sub)}</div></div>
+        <span class="wtag ${it.tone==='amber'?'':'green'}">${it.tone==='amber'?'Sem dono':'Em andamento'}</span>
+      </a>`).join('')
+    : `<div class="card pad center muted">Tudo em dia. Nada pendente. 🌱</div>`}
+  </div>`;
+}
+
+/* ============================================================
+   CLIENTES — lista + detalhe (Administrativo + Financeiro)
+   ============================================================ */
+function clientesList(){
+  let cs=Data.activeClients();
+  if(SEARCH) cs=cs.filter(c=>(c.name+' '+c.handle).toLowerCase().includes(SEARCH));
+  const rows = cs.map(c=>{
+    const pr=Data.progress(c);
+    const need=pr.adj+pr.rej;
+    const nProj=(c.projects||[]).filter(p=>!p.archived).length;
+    const tag = need>0?`<span class="wtag">${need} aguardando</span>`:`<span class="wtag green">Em dia</span>`;
+    return `<div class="wrow" onclick="go('#clientes/${c.id}')">
+      ${U.avatarHtml(c,'lg')}
+      <div class="wr-main"><div class="wr-title">${esc(c.name)}</div>
+        <div class="wr-meta">${esc(c.handle)} · ${nProj} projeto${nProj===1?'':'s'} · ${pr.total} conteúdos</div></div>
+      <div class="wr-side">${tag}
+        <div class="ring" style="--p:${pr.pct}"><b>${pr.pct}%</b></div>
+        <span class="dim">${U.icon('arrow')}</span></div>
+    </div>`;
+  }).join('');
+  return `
+  <div class="ws-head">
+    <div><div class="ws-title">Clientes</div><div class="ws-sub">${cs.length} ativos — administrativo e financeiro de cada um.</div></div>
+    <a class="btn btn-primary" href="operacional.html">${U.icon('plus')} Novo cliente</a>
+  </div>
+  <div class="col" style="gap:11px">${rows||'<div class="card pad muted">Nenhum cliente.</div>'}</div>`;
+}
+
+let CTAB='admin';
+function clienteDetail(cid){
+  const c=Data.client(cid);
+  if(!c) return `<div class="card pad">Cliente não encontrado. <a href="#clientes">voltar</a></div>`;
+  const body = CTAB==='fin'?cliFinance(c):cliAdmin(c);
+  return `
+  <div class="ws-head" style="align-items:center">
+    <div class="row" style="gap:14px">
+      <button class="btn-icon card" onclick="go('#clientes')" title="Voltar">${U.icon('back')}</button>
+      ${U.avatarHtml(c,'lg')}
+      <div><div class="ws-title" style="font-size:26px">${esc(c.name)}</div>
+        <div class="ws-sub">${esc(c.handle)}</div></div>
+    </div>
+    <div class="seg green">
+      <button class="${CTAB==='admin'?'on':''}" onclick="setCTab('admin')">Administrativo</button>
+      <button class="${CTAB==='fin'?'on':''}" onclick="setCTab('fin')">Financeiro</button>
+    </div>
+  </div>
+  <div class="row wrap" style="gap:10px;margin-bottom:22px">
+    ${quick('layers','Operacional',`operacional-cliente.html?c=${c.id}`)}
+    ${quick('idea','Base estratégica',`estrategia.html?c=${c.id}`)}
+    ${quick('chart','Métricas',`metricas.html?c=${c.id}`)}
+    ${quick('calendar','Agenda',`#agenda`,true)}
+  </div>
+  ${body}`;
+}
+function quick(ic,label,href,hash){
+  const h = hash?`onclick="go('${href}')"`:`href="${href}"`;
+  return `<a class="wtag" style="padding:9px 14px;cursor:pointer" ${h}>${U.icon(ic)} ${label}</a>`;
+}
+function setCTab(t){ CTAB=t; render(); }
+function afterClient(cid){ /* nada extra por enquanto */ }
+
+function cliAdmin(c){
+  const d=c.dados||{};
+  const kv=(ic,k,val,link)=>{ if(!val) return '';
+    const isUrl=/^https?:/i.test(val);
+    const vv=(link&&isUrl)?`<a href="${val}" target="_blank" rel="noopener" style="color:var(--text)">abrir ${U.icon('arrow')}</a>`:`<strong style="color:var(--text)">${esc(val)}</strong>`;
+    return `<div class="kv"><span class="k">${U.icon(ic)} ${k}</span>${vv}</div>`; };
+  const any=d.telefone||d.email||d.servico||d.contrato||d.obs;
+  const acc=(d.acessos||[]);
+  return `
+  <div class="grid c2" style="gap:16px;align-items:start">
+    <div class="card pad">
+      <div class="row between" style="margin-bottom:12px">
+        <div class="eyebrow" style="margin:0">Informações</div>
+        <a class="btn btn-sm card" href="dados.html?c=${c.id}">${U.icon('edit')} Editar</a>
+      </div>
+      ${any?`<div class="col" style="gap:2px">
+        ${kv('chat','WhatsApp',d.telefone)}
+        ${kv('message','E-mail',d.email)}
+        ${kv('check','Serviço / pacote',d.servico)}
+        ${kv('link','Contrato / Drive',d.contrato,true)}
+        ${d.obs?`<div class="kv" style="align-items:flex-start"><span class="k">${U.icon('idea')} Observações</span><span style="max-width:60%;text-align:right;color:var(--text)">${esc(d.obs)}</span></div>`:''}
+      </div>`:`<p class="meta-sm">Sem dados salvos. Clique em Editar.</p>`}
+    </div>
+    <div class="card pad">
+      <div class="eyebrow" style="margin-bottom:12px">Acessos das redes</div>
+      ${acc.length?`<div class="col" style="gap:8px">${acc.map(a=>`
+        <div class="row between" style="background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px 13px">
+          <div class="col"><strong>${esc(a.rede||'—')}</strong><span class="meta-sm">${esc(a.login||'—')}</span></div>
+          <span class="meta-sm">${a.senha?'•'.repeat(Math.min(a.senha.length,8)):'—'}</span>
+        </div>`).join('')}</div>`:'<p class="meta-sm">Nenhum acesso salvo.</p>'}
+    </div>
+  </div>`;
+}
+
+function pStatus(p){
+  if(p.paid) return { cls:'is-aprovado', label:'Recebida' };
+  const today=new Date(); today.setHours(0,0,0,0);
+  const due=new Date(p.due+'T00:00:00');
+  if(due<today) return { cls:'is-reprovado', label:'Vencida' };
+  const dl=U.daysLeft(p.due);
+  if(dl<=7) return { cls:'is-ajustes', label:dl<=0?'Vence hoje':'Vence em '+dl+'d' };
+  return { cls:'is-pendente', label:'Pendente' };
+}
+function cliFinance(c){
+  const FIN=c.finance||{}; const parc=FIN.parcelas||[];
+  const total=parc.length, paidN=parc.filter(p=>p.paid).length;
+  const totalVal=parc.reduce((s,p)=>s+Number(p.valor||0),0);
+  const paidVal=parc.filter(p=>p.paid).reduce((s,p)=>s+Number(p.valor||0),0);
+  const prox=parc.filter(p=>!p.paid).sort((a,b)=>a.due.localeCompare(b.due))[0];
+  const kpi=(k,v,ic)=>`<div class="card pad"><div class="row between"><span class="meta-sm">${k}</span><span class="dim">${U.icon(ic)}</span></div><div style="font-family:var(--serif);font-weight:800;font-size:24px;margin-top:6px">${v}</div></div>`;
+  const rows=parc.map(p=>{ const st=pStatus(p);
+    return `<div class="wrow" style="cursor:default">
+      <strong style="width:30px;text-align:center">${String(p.n).padStart(2,'0')}</strong>
+      <div class="wr-main"><div class="wr-title">${U.brl(p.valor)}</div>
+        <div class="wr-meta">Vence ${U.fmtDate(p.due)}${p.paid&&p.paidDate?' · recebida '+U.fmtDate(p.paidDate):''}</div></div>
+      <span class="badge ${st.cls}"><span class="pip"></span>${st.label}</span>
+      <div class="wr-side">
+        ${!p.paid?`<button class="btn btn-sm card" onclick="finCobrar('${c.id}',${p.n})">${U.icon('whats')} Cobrar</button>`:''}
+        <button class="btn btn-sm ${p.paid?'card':'btn-primary'}" onclick="finPaid('${c.id}',${p.n})">${p.paid?'Desmarcar':'Recebida'}</button>
+      </div>
+    </div>`;}).join('');
+  return `
+  ${total?`<div class="grid c4 stagger" style="gap:14px;margin-bottom:22px">
+    ${kpi('Recebido',paidN+'/'+total,'check')}
+    ${kpi('Valor recebido',U.brl(paidVal),'check')}
+    ${kpi('Total do contrato',U.brl(totalVal),'grid')}
+    ${kpi('Próximo vencimento',prox?U.fmtDate(prox.due):'—','clock')}
+  </div>`:''}
+  <div class="row between" style="margin-bottom:12px">
+    <h2 class="display" style="font-size:20px">Parcelas</h2>
+    <a class="btn btn-sm card" href="financeiro.html?c=${c.id}">${U.icon('edit')} Editar contrato</a>
+  </div>
+  <div class="col" style="gap:10px">${total?rows:'<div class="card pad muted">Nenhuma parcela. Configure o contrato em “Editar contrato”.</div>'}</div>`;
+}
+async function finPaid(cid,n){ const c=Data.client(cid); const p=(c.finance.parcelas||[]).find(x=>x.n===n); if(!p) return;
+  p.paid=!p.paid; p.paidDate=p.paid?todayISO():''; await Store.setFinance(cid,c.finance); render(); }
+function finCobrar(cid,n){ const c=Data.client(cid); const FIN=c.finance||{}; const p=(FIN.parcelas||[]).find(x=>x.n===n); if(!p) return;
+  const tel=(FIN.telefone||'').replace(/\D/g,''); if(!tel){ U.toast('Preencha o WhatsApp em Editar contrato'); return; }
+  const msg=`Olá ${c.name.split(' ')[0]}, tudo bem? Passando pra lembrar da parcela ${p.n}/${FIN.parcelas.length} (${U.brl(p.valor)}), com vencimento em ${U.fmtDate(p.due)}. Quando puder, me avisa! — ${MANAGER.studio||'oFruto'}`;
+  window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank'); }
+
+/* ============================================================
+   EQUIPE — time, produtividade, o que cada um tem, função, +tarefa
+   ============================================================ */
+function statsOfPerson(name){
+  let done=0, pend=0;
+  (Data.allClients()||[]).forEach(c=>{ if(c.archived) return;
+    (c.projects||[]).forEach(p=>{ if(p.kind==='entrega') return; (p.posts||[]).forEach(post=>{
+      if(post.responsavel!==name) return;
+      if(TASK_DONE.includes(post.prod)) done++; else if(post.prod) pend++;
+    });});
+    (c.board||[]).forEach(t=>{ if(t.responsavel!==name) return; if(t.status==='concluido') done++; else pend++; });
+  });
+  const tot=done+pend; return { done, pend, tot, pct: tot?Math.round(done/tot*100):0 };
+}
+function equipe(){
+  const names=Data.teamNames();
+  const cards=names.map((name,i)=>{
+    const m=Data.teamByName(name);
+    const funcao=Data.funcaoOf(name);
+    const s=statsOfPerson(name);
+    const wl=Data.workloadByPerson()[name]||[];
+    const av=U.avatarHtml(m?{name:m.name,avatar:m.photo,color:PALETTE[i%PALETTE.length]}:{name, color:'art-4'},'lg');
+    const funcSel = m?`<select class="input select-bare" style="padding:6px 10px;font-size:12.5px" onchange="setFunc('${m.id}',this.value)">
+        <option value="">função…</option>
+        ${FUNCOES.map(f=>`<option ${funcao===f?'selected':''}>${f}</option>`).join('')}
+      </select>`:`<span class="wtag">Gestor</span>`;
+    const items = wl.slice(0,4).map(it=>`<div class="row between" style="padding:7px 0;border-top:1px solid var(--line)">
+        <span class="meta-sm" style="color:var(--text)">${esc(it.title)}</span>
+        <span class="meta-sm">${esc(it.client.name)} · ${esc(it.sub)}</span></div>`).join('');
+    return `<div class="tmember">
+      <div class="row between">
+        <div class="row" style="gap:12px">${av}
+          <div><strong style="font-size:16px">${esc(name)}</strong>
+            <div style="margin-top:4px">${funcSel}</div></div>
+        </div>
+        <button class="btn-icon card" title="Adicionar tarefa" onclick="addTaskFor('${esc(name)}')">${U.icon('plus')}</button>
+      </div>
+      <div class="row between" style="margin-top:16px;gap:14px">
+        <div class="grow"><div class="row between"><span class="meta-sm">Produtividade</span>
+          <span class="meta-sm" style="color:var(--green)">${s.pct}%</span></div>
+          <div class="prog" style="margin-top:6px"><i style="width:${s.pct}%"></i></div></div>
+        <div class="center"><div style="font-family:var(--serif);font-weight:800;font-size:22px">${s.pend}</div>
+          <span class="meta-sm">a fazer</span></div>
+      </div>
+      ${wl.length?`<div style="margin-top:12px">${items}${wl.length>4?`<div class="meta-sm" style="padding-top:8px;border-top:1px solid var(--line)">+${wl.length-4} outras</div>`:''}</div>`
+        :`<div class="meta-sm" style="margin-top:12px">Sem tarefas abertas. 🎉</div>`}
+    </div>`;
+  }).join('');
+  return `
+  <div class="ws-head">
+    <div><div class="ws-title">Equipe</div><div class="ws-sub">Andamento, produtividade e o que cada um tem pra fazer.</div></div>
+    <a class="btn btn-primary" href="equipe.html">${U.icon('plus')} Gerir equipe</a>
+  </div>
+  <div class="grid c2" style="gap:16px">${cards}</div>`;
+}
+async function setFunc(id,val){ await Store.updateTeam(id,{funcao:val}); U.toast('Função atualizada'); render(); }
+
+/* ============================================================
+   SOP · OPERACIONAL — por cliente, Kanban ou Lista
+   ============================================================ */
+function sop(arg){
+  const cs=Data.activeClients();
+  if(arg) SOP_CID=arg;
+  if(!SOP_CID && cs.length) SOP_CID=cs[0].id;
+  const c=Data.client(SOP_CID);
+  const chips = cs.map(x=>`<button class="wtag ${x.id===SOP_CID?'green':''}" style="cursor:pointer" onclick="setSop('${x.id}')">${esc(x.name)}</button>`).join('');
+  if(!c) return `<div class="ws-head"><div class="ws-title">SOP · Operacional</div></div><div class="card pad muted">Nenhum cliente ativo.</div>`;
+  const board=(c.board||[]);
+  const view = SOP_VIEW==='lista'?sopLista(c,board):sopKanban(c,board);
+  return `
+  <div class="ws-head">
+    <div><div class="ws-title">SOP · Operacional</div><div class="ws-sub">Fluxo de produção por cliente — arraste pelo status.</div></div>
+    <div class="row" style="gap:10px">
+      <button class="btn btn-sm card" onclick="addBoard('${c.id}')">${U.icon('plus')} Tarefa</button>
+      <div class="vtoggle">
+        <button class="${SOP_VIEW==='kanban'?'on':''}" title="Kanban" onclick="setView('kanban')">${U.icon('grid')}</button>
+        <button class="${SOP_VIEW==='lista'?'on':''}" title="Lista" onclick="setView('lista')">${U.icon('layers')}</button>
+      </div>
+    </div>
+  </div>
+  <div class="row wrap" style="gap:8px;margin-bottom:20px">${chips}</div>
+  ${view}`;
+}
+function setSop(id){ SOP_CID=id; go('#sop/'+id); }
+function setView(v){ SOP_VIEW=v; render(); }
+
+function flowSegs(cur){
+  const idx=BOARD_COLS.findIndex(x=>x.key===cur);
+  const segs=BOARD_COLS.map((x,i)=>`<span class="kseg${i<=idx?' fill':''}"></span>`).join('');
+  const lbl=(BOARD_COLS.find(x=>x.key===cur)||{}).label||'';
+  return `<div class="kflow f-${cur}"><span class="ksegs">${segs}</span><span class="kflow-lbl">${lbl}</span></div>`;
+}
+function boardStatusSel(cid,t){
+  const cur=t.status||'nao';
+  return `<select class="input select-bare" style="padding:5px 10px;font-size:12px" onchange="setBoardStatus('${cid}','${t.id}',this.value)">
+    ${BOARD_COLS.map(x=>`<option value="${x.key}" ${cur===x.key?'selected':''}>${x.label}</option>`).join('')}</select>`;
+}
+function sopKanban(c,board){
+  const cols=BOARD_COLS.map(col=>{
+    const items=board.filter(t=>(t.status||'nao')===col.key);
+    const cards=items.map(t=>`<div class="kcard k-${t.status||'nao'}">
+      <strong style="font-size:14px">${esc(t.title)}</strong>
+      ${flowSegs(t.status||'nao')}
+      <div class="row wrap" style="gap:6px;margin-top:9px">
+        ${t.responsavel?`<span class="badge">${U.icon('user')} ${esc(t.responsavel)}${Data.funcaoOf(t.responsavel)?' · '+esc(Data.funcaoOf(t.responsavel)):''}</span>`:'<span class="badge is-breve">sem responsável</span>'}
+        ${t.fim?`<span class="badge">${U.icon('calendar')} ${U.fmtDateShort(t.fim)}</span>`:''}
+      </div>
+      <div class="row" style="gap:6px;margin-top:10px">${boardStatusSel(c.id,t)}
+        <button class="btn-icon card" style="width:34px;height:34px" onclick="delBoard('${c.id}','${t.id}')" title="Excluir">${U.icon('trash')}</button></div>
+    </div>`).join('');
+    return `<div class="kcol"><div class="row between" style="margin-bottom:12px">
+        <strong>${col.label}</strong><span class="ws-count">${items.length}</span></div>
+      <div class="col" style="gap:10px">${cards||'<p class="meta-sm">—</p>'}</div></div>`;
+  }).join('');
+  return `<div class="grid c3" style="gap:14px;align-items:start">${cols}</div>`;
+}
+function sopLista(c,board){
+  if(!board.length) return '<div class="card pad muted">Nenhuma tarefa no quadro. Clique em “Tarefa”.</div>';
+  const order={nao:0,andamento:1,concluido:2};
+  const rows=[...board].sort((a,b)=>(order[a.status||'nao'])-(order[b.status||'nao'])).map(t=>`
+    <div class="wrow" style="cursor:default">
+      <span class="wr-radio ${t.status==='concluido'?'':''}"></span>
+      <div class="wr-main"><div class="wr-title">${esc(t.title)}</div>
+        <div class="wr-meta">${t.responsavel?esc(t.responsavel):'sem responsável'}${t.fim?' · '+U.fmtDateShort(t.fim):''}</div></div>
+      <div style="width:160px">${flowSegs(t.status||'nao')}</div>
+      <div class="wr-side">${boardStatusSel(c.id,t)}
+        <button class="btn-icon card" onclick="delBoard('${c.id}','${t.id}')" title="Excluir">${U.icon('trash')}</button></div>
+    </div>`).join('');
+  return `<div class="col" style="gap:10px">${rows}</div>`;
+}
+async function setBoardStatus(cid,id,val){ await Store.updateBoardTask(cid,id,{status:val}); render(); }
+async function delBoard(cid,id){ if(!confirm('Excluir tarefa?')) return; await Store.deleteBoardTask(cid,id); render(); }
+
+/* ============================================================
+   AGENDA — gravações e reuniões
+   ============================================================ */
+function agenda(){
+  const evs=(Data.events()||[]).slice().sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+  const future=evs.filter(e=>e.date>=todayISO());
+  const grav=future.filter(e=>e.type==='gravacao');
+  const reun=future.filter(e=>e.type==='reuniao');
+  const outro=future.filter(e=>e.type!=='gravacao'&&e.type!=='reuniao');
+  const card=(e,ic)=>{ const c=e.client_id?Data.client(e.client_id):null;
+    return `<div class="wrow" style="cursor:default">
+      <span class="ws-ic">${U.icon(ic)}</span>
+      <div class="wr-main"><div class="wr-title">${esc(e.title)}</div>
+        <div class="wr-meta">${U.fmtDate(e.date)}${e.time?' · '+e.time:''}${c?' · '+esc(c.name):''}</div></div>
+      <a class="wtag" href="${U.gcalUrl(e)}" target="_blank" rel="noopener">${U.icon('calendar')} Google</a>
+    </div>`; };
+  const block=(title,ic,list)=>`
+    <div style="margin-bottom:26px">
+      <div class="row between" style="margin-bottom:12px"><h2 class="display" style="font-size:20px">${title}</h2>
+        <span class="ws-count">${list.length}</span></div>
+      <div class="col" style="gap:10px">${list.length?list.map(e=>card(e,ic)).join(''):'<div class="card pad muted">Nada agendado.</div>'}</div>
+    </div>`;
+  return `
+  <div class="ws-head">
+    <div><div class="ws-title">Agenda</div><div class="ws-sub">Gravações, reuniões e compromissos.</div></div>
+    <a class="btn btn-primary" href="agenda.html">${U.icon('plus')} Novo evento</a>
+  </div>
+  ${block('Gravações','clapper',grav)}
+  ${block('Reuniões','chat',reun)}
+  ${outro.length?block('Outros','calendar',outro):''}`;
+}
+
+/* ============================================================
+   MODAIS (add board task / add task for person)
+   ============================================================ */
+function openModal(html){ document.getElementById('modal-root').innerHTML=
+  `<div class="wsmodal-back" onclick="if(event.target===this)closeModal()"><div class="wsmodal card pad">${html}</div></div>`; }
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+
+function addBoard(cid){
+  const names=Data.teamNames();
+  openModal(`<h2 class="display" style="font-size:20px;margin-bottom:14px">Nova tarefa</h2>
+    <div class="field"><label>Título</label><input class="input" id="m-title" placeholder="Ex.: Editar reel manifesto"></div>
+    <div class="grid c2">
+      <div class="field"><label>Responsável</label><select class="input" id="m-resp"><option value="">—</option>${names.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>
+      <div class="field"><label>Prazo</label><input class="input" id="m-fim" type="date"></div>
+    </div>
+    <div class="field"><label>Status</label><select class="input" id="m-status">${BOARD_COLS.map(x=>`<option value="${x.key}">${x.label}</option>`).join('')}</select></div>
+    <div class="row" style="gap:10px;margin-top:8px">
+      <button class="btn btn-primary" onclick="saveBoard('${cid}')">${U.icon('check')} Adicionar</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function saveBoard(cid){
+  const title=document.getElementById('m-title').value.trim(); if(!title){ U.toast('Dê um título'); return; }
+  await Store.addBoardTask(cid,{ title, status:document.getElementById('m-status').value,
+    responsavel:document.getElementById('m-resp').value, fim:document.getElementById('m-fim').value });
+  closeModal(); render(); U.toast('Tarefa criada ✅');
+}
+function addTaskFor(name){
+  openModal(`<h2 class="display" style="font-size:20px;margin-bottom:6px">Tarefa para ${esc(name)}</h2>
+    <p class="meta-sm" style="margin-bottom:14px">Tarefa avulsa (não ligada a um cliente).</p>
+    <div class="field"><label>O que precisa fazer</label><input class="input" id="m-ptitle" placeholder="Ex.: Enviar proposta"></div>
+    <div class="grid c2">
+      <div class="field"><label>Prazo</label><input class="input" id="m-pprazo" type="date"></div>
+      <div class="field"><label>Prioridade</label><select class="input" id="m-pprio"><option value="normal">Normal</option><option value="alta">Alta</option></select></div>
+    </div>
+    <div class="row" style="gap:10px;margin-top:8px">
+      <button class="btn btn-primary" onclick="savePersonal('${esc(name)}')">${U.icon('check')} Adicionar</button>
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button></div>`);
+}
+async function savePersonal(name){
+  const title=document.getElementById('m-ptitle').value.trim(); if(!title){ U.toast('Descreva a tarefa'); return; }
+  await Store.addPersonalTask({ owner:name, title, prazo:document.getElementById('m-pprazo').value, prioridade:document.getElementById('m-pprio').value });
+  closeModal(); render(); U.toast('Tarefa adicionada ✅');
+}
+
+/* ---------- busca ---------- */
+function onSearch(v){ SEARCH=(v||'').toLowerCase().trim();
+  const {sec}=parseHash(); if(sec==='clientes') render(); }
+
+/* ---------- util ---------- */
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+U.boot(render, {manager:true});
+</script>
+</body>
+</html>

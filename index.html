@@ -57,7 +57,7 @@ function entrar(id){
   if(pw===null) return;
   if(pw!==p.pass){ alert('Senha incorreta.'); return; }
   Auth.login({ id:p.id, name:p.name, role:p.role });
-  location.href = p.role==='gestor' ? 'gestor/hub.html' : 'gestor/minhas-tarefas.html';
+  location.href = p.role==='gestor' ? 'gestor/workspace.html' : 'gestor/minhas-tarefas.html';
 }
 U.boot(renderPeople);
 </script>

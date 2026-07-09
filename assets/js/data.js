@@ -858,6 +858,7 @@ function paintBrand(){
 
 /* barra de navegação inferior (estilo app) — injetada conforme papel/seção */
 U.appNav = function(){
+  if(document.body.hasAttribute('data-nochrome')) return;
   if(document.querySelector('.tabbar')) return;
   const path = location.pathname;
   const file = (path.split('/').pop() || 'index.html');
@@ -934,6 +935,7 @@ U.toggleTheme = function(){
   if(window.Metrics && Metrics.el && Metrics.drawCharts){ try{ Metrics.drawCharts(); }catch(e){} }
 };
 U.mountTheme = function(){
+  if(document.body.hasAttribute('data-nochrome')) return;
   const wrap=document.querySelector('.topbar .wrap'); if(!wrap || wrap.querySelector('.themebtn')) return;
   const light=document.documentElement.getAttribute('data-theme')==='light';
   const b=document.createElement('button'); b.className='btn-icon card themebtn';
@@ -948,7 +950,7 @@ else document.addEventListener("DOMContentLoaded", initChrome);
 
 /* expor globais */
 /* href da "home" conforme o papel: gestor -> hub, operacional -> minhas tarefas */
-U.homeHref = function(){ const u=Auth.user&&Auth.user(); return (u&&u.role==='gestor') ? 'hub.html' : 'minhas-tarefas.html'; };
+U.homeHref = function(){ const u=Auth.user&&Auth.user(); return (u&&u.role==='gestor') ? 'workspace.html' : 'minhas-tarefas.html'; };
 U.isGestor = function(){ const u=Auth.user&&Auth.user(); return !!(u&&u.role==='gestor'); };
 
 window.DB=DB; window.Data=Data; window.U=U; window.Store=Store; window.Auth=Auth;
