@@ -851,9 +851,8 @@ const VERIFIED_SVG =
   + '<path d="M8.5 12.2l2.3 2.3 4.6-4.8" fill="none" stroke="#0a0a0c" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>'
   + '</svg>';
 function paintBrand(){
-  document.querySelectorAll(".brand .dot").forEach(el=>{
-    if(!el.dataset.brand){ el.innerHTML = VERIFIED_SVG; el.dataset.brand="1"; }
-  });
+  /* selo removido: o brand fica só com o nome "oFruto" */
+  document.querySelectorAll(".brand .dot").forEach(el=>{ el.style.display='none'; el.innerHTML=''; });
 }
 
 /* barra de navegação inferior (estilo app) — injetada conforme papel/seção */
@@ -910,7 +909,7 @@ U.appNav = function(){
     }).join('');
     const aside = document.createElement('aside'); aside.className='sidebar';
     aside.innerHTML =
-      `<a class="sb-logo" href="${home}"><span class="dot">${VERIFIED_SVG}</span> oFruto</a>
+      `<a class="sb-logo" href="${home}">oFruto</a>
        <nav class="sb-nav">${items}</nav>
        <div class="sb-foot">
          <button class="sb-item sb-theme" onclick="U.toggleTheme()"><span class="sb-ic">${U.icon(light?'moon':'sun')}</span><span>Tema ${light?'claro':'escuro'}</span></button>

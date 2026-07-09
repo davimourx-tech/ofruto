@@ -8,17 +8,19 @@
 </head>
 <body class="ws-body" data-nochrome>
 
+<button class="ws-open" id="ws-open" onclick="toggleSide()" aria-label="Abrir menu"></button>
 <div class="ws">
   <aside class="ws-side">
-    <a class="ws-brand" href="workspace.html"><span class="dot"></span> oFruto</a>
-    <div class="ws-search">${''}
-      <span style="display:flex">${''}</span>
-      <input id="ws-q" placeholder="Buscar cliente, tarefa…" oninput="onSearch(this.value)">
+    <div class="ws-brand"><a href="workspace.html" style="flex:1">oFruto</a>
+      <button class="ws-collapse" id="ws-collapse" onclick="toggleSide()" title="Recolher menu"></button></div>
+    <div class="ws-search">
+      <span class="ws-searchic" style="display:flex"></span>
+      <input id="ws-q" placeholder="Buscar" oninput="onSearch(this.value)">
     </div>
     <nav class="ws-nav" id="ws-nav"></nav>
     <div class="ws-foot">
       <button class="ws-item" onclick="U.toggleTheme()"><span class="ws-ic" id="ws-theme-ic"></span><span class="ws-lbl">Tema</span></button>
-      <button class="ws-item" onclick="Auth.logout()"><span class="ws-ic"></span><span class="ws-lbl">Sair</span></button>
+      <button class="ws-item" onclick="Auth.logout()"><span class="ws-ic" id="ws-exit-ic"></span><span class="ws-lbl">Sair</span></button>
     </div>
   </aside>
   <main class="ws-main" id="panel"></main>
@@ -31,7 +33,7 @@
 <script src="../assets/js/data.js"></script>
 <script>
 /* ============================================================
-   WORKSPACE — app único estilo ClickUp/FocusFlow
+   WORKSPACE app único estilo ClickUp/FocusFlow
    Menu à esquerda troca a seção do painel (sem recarregar).
    ============================================================ */
 const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -48,9 +50,10 @@ function go(hash){ location.hash=hash; }
 
 const NAV = [
   { key:'overview', icon:'grid',     label:'Visão geral' },
+  { key:'tarefas',  icon:'check',    label:'Minhas tarefas' },
   { key:'clientes', icon:'user',     label:'Clientes',   count:()=>Data.activeClients().length },
   { key:'equipe',   icon:'megaphone',label:'Equipe',     count:()=>Data.teamNames().length },
-  { key:'sop',      icon:'layers',   label:'SOP · Operacional' },
+  { key:'sop',      icon:'layers',   label:'Operacional' },
   { key:'agenda',   icon:'calendar', label:'Agenda' }
 ];
 
@@ -65,11 +68,13 @@ function renderNav(active){
     }).join('');
   const light=document.documentElement.getAttribute('data-theme')==='light';
   document.getElementById('ws-theme-ic').innerHTML=U.icon(light?'moon':'sun');
-  document.querySelector('.ws-foot .ws-item:last-child .ws-ic').innerHTML=U.icon('back');
-  document.querySelector('.ws-brand .dot').innerHTML=VERIFIED_SVG;
-  // ícone lupa da busca
-  const sIc=document.querySelector('.ws-search span'); if(sIc) sIc.innerHTML=U.icon('eye');
+  const ex=document.getElementById('ws-exit-ic'); if(ex) ex.innerHTML=U.icon('back');
+  const sIc=document.querySelector('.ws-searchic'); if(sIc) sIc.innerHTML=U.icon('eye');
+  const cb=document.getElementById('ws-collapse'); if(cb) cb.innerHTML=U.icon('back');
+  const ob=document.getElementById('ws-open'); if(ob) ob.innerHTML=U.icon('grid');
 }
+function toggleSide(){ document.body.classList.toggle('ws-collapsed');
+  try{ localStorage.setItem('ofruto_ws_side', document.body.classList.contains('ws-collapsed')?'off':'on'); }catch(e){} }
 
 /* ---------- render principal ---------- */
 function render(){
@@ -78,6 +83,7 @@ function render(){
   const p=document.getElementById('panel'); p.scrollTop=0;
   if(sec==='clientes' && arg) return void(p.innerHTML=clienteDetail(arg), afterClient(arg));
   if(sec==='overview') p.innerHTML=overview();
+  else if(sec==='tarefas') p.innerHTML=myTasks();
   else if(sec==='clientes') p.innerHTML=clientesList();
   else if(sec==='equipe') p.innerHTML=equipe();
   else if(sec==='sop') p.innerHTML=sop(arg);
@@ -106,8 +112,7 @@ function overview(){
   cs.forEach(c=>(c.board||[]).forEach(t=>{ if(t.status==='andamento') pend.push({t:t.title, sub:`${c.name} · ${t.responsavel||'sem responsável'}`, tone:'blue', href:`#sop/${c.id}`}); }));
   return `
   <div class="ws-head">
-    <div><div class="ws-title">Olá, ${esc((Auth.user()||{}).name||'')} 👋</div>
-      <div class="ws-sub">${U.greet().replace(/^./,m=>m.toUpperCase())} — aqui está o pulso da agência hoje.</div></div>
+    <div><div class="ws-title">Olá, ${esc((Auth.user()||{}).name||'')} 👋</div></div>
   </div>
   <div class="grid c4 stagger" style="gap:14px">
     ${stat('user','Clientes ativos',cs.length)}
@@ -131,7 +136,39 @@ function overview(){
 }
 
 /* ============================================================
-   CLIENTES — lista + detalhe (Administrativo + Financeiro)
+   MINHAS TAREFAS
+   ============================================================ */
+function myTasks(){
+  const me=(Auth.user()||{}).name||'';
+  const funcao=Data.funcaoOf(me);
+  const board=Data.boardTasksOf(me);
+  const posts=Data.tasksOf(me).filter(x=>!TASK_DONE.includes(x.post.prod));
+  const pers=Data.personalTasksOf(me);
+  const rows=[];
+  board.forEach(({client,task})=>rows.push({ title:task.title, ctx:client.name,
+    tag:(BOARD_COLS.find(x=>x.key===(task.status||'nao'))||{}).label||'', href:`#sop/${client.id}` }));
+  posts.forEach(({client,project,post})=>rows.push({ title:post.title, ctx:client.name,
+    tag:post.prod||'conteúdo', href:`projeto.html?c=${client.id}&p=${project.id}`, ext:true }));
+  pers.forEach(p=>rows.push({ title:p.title, ctx:'Pessoal', tag:p.prazo?U.fmtDateShort(p.prazo):'', href:'' }));
+  const list = rows.length ? rows.map(r=>`
+    <${r.href?(r.ext?'a':'a'):'div'} class="wrow" ${r.href?(r.ext?`href="${r.href}"`:`onclick="go('${r.href}')"`):'style="cursor:default"'}>
+      <span class="wr-radio"></span>
+      <div class="wr-main"><div class="wr-title">${esc(r.title)}</div><div class="wr-meta">${esc(r.ctx)}</div></div>
+      ${r.tag?`<span class="wtag">${esc(r.tag)}</span>`:''}
+    </${r.href?'a':'div'}>`).join('')
+    : `<div class="card pad center muted">Nada atribuído a você agora. 🌱</div>`;
+  return `
+  <div class="ws-head">
+    <div class="row" style="gap:14px">
+      <div><div class="ws-title">Minhas tarefas</div></div>
+      ${funcao?`<span class="wtag">${esc(funcao)}</span>`:''}
+    </div>
+  </div>
+  <div class="col" style="gap:10px">${list}</div>`;
+}
+
+/* ============================================================
+   CLIENTES lista + detalhe (Administrativo + Financeiro)
    ============================================================ */
 function clientesList(){
   let cs=Data.activeClients();
@@ -152,7 +189,7 @@ function clientesList(){
   }).join('');
   return `
   <div class="ws-head">
-    <div><div class="ws-title">Clientes</div><div class="ws-sub">${cs.length} ativos — administrativo e financeiro de cada um.</div></div>
+    <div><div class="ws-title">Clientes</div></div>
     <a class="btn btn-primary" href="operacional.html">${U.icon('plus')} Novo cliente</a>
   </div>
   <div class="col" style="gap:11px">${rows||'<div class="card pad muted">Nenhum cliente.</div>'}</div>`;
@@ -168,8 +205,7 @@ function clienteDetail(cid){
     <div class="row" style="gap:14px">
       <button class="btn-icon card" onclick="go('#clientes')" title="Voltar">${U.icon('back')}</button>
       ${U.avatarHtml(c,'lg')}
-      <div><div class="ws-title" style="font-size:26px">${esc(c.name)}</div>
-        <div class="ws-sub">${esc(c.handle)}</div></div>
+      <div><div class="ws-title" style="font-size:26px">${esc(c.name)}</div></div>
     </div>
     <div class="seg green">
       <button class="${CTAB==='admin'?'on':''}" onclick="setCTab('admin')">Administrativo</button>
@@ -177,7 +213,7 @@ function clienteDetail(cid){
     </div>
   </div>
   <div class="row wrap" style="gap:10px;margin-bottom:22px">
-    ${quick('layers','Operacional',`operacional-cliente.html?c=${c.id}`)}
+    ${quick('layers','Operacional',`#sop/${c.id}`,true)}
     ${quick('idea','Base estratégica',`estrategia.html?c=${c.id}`)}
     ${quick('chart','Métricas',`metricas.html?c=${c.id}`)}
     ${quick('calendar','Agenda',`#agenda`,true)}
@@ -269,11 +305,11 @@ async function finPaid(cid,n){ const c=Data.client(cid); const p=(c.finance.parc
   p.paid=!p.paid; p.paidDate=p.paid?todayISO():''; await Store.setFinance(cid,c.finance); render(); }
 function finCobrar(cid,n){ const c=Data.client(cid); const FIN=c.finance||{}; const p=(FIN.parcelas||[]).find(x=>x.n===n); if(!p) return;
   const tel=(FIN.telefone||'').replace(/\D/g,''); if(!tel){ U.toast('Preencha o WhatsApp em Editar contrato'); return; }
-  const msg=`Olá ${c.name.split(' ')[0]}, tudo bem? Passando pra lembrar da parcela ${p.n}/${FIN.parcelas.length} (${U.brl(p.valor)}), com vencimento em ${U.fmtDate(p.due)}. Quando puder, me avisa! — ${MANAGER.studio||'oFruto'}`;
+  const msg=`Olá ${c.name.split(' ')[0]}, tudo bem? Passando pra lembrar da parcela ${p.n}/${FIN.parcelas.length} (${U.brl(p.valor)}), com vencimento em ${U.fmtDate(p.due)}. Quando puder, me avisa! ${MANAGER.studio||'oFruto'}`;
   window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank'); }
 
 /* ============================================================
-   EQUIPE — time, produtividade, o que cada um tem, função, +tarefa
+   EQUIPE time, produtividade, o que cada um tem, função, +tarefa
    ============================================================ */
 function statsOfPerson(name){
   let done=0, pend=0;
@@ -322,7 +358,7 @@ function equipe(){
   }).join('');
   return `
   <div class="ws-head">
-    <div><div class="ws-title">Equipe</div><div class="ws-sub">Andamento, produtividade e o que cada um tem pra fazer.</div></div>
+    <div><div class="ws-title">Equipe</div></div>
     <a class="btn btn-primary" href="equipe.html">${U.icon('plus')} Gerir equipe</a>
   </div>
   <div class="grid c2" style="gap:16px">${cards}</div>`;
@@ -330,7 +366,7 @@ function equipe(){
 async function setFunc(id,val){ await Store.updateTeam(id,{funcao:val}); U.toast('Função atualizada'); render(); }
 
 /* ============================================================
-   SOP · OPERACIONAL — por cliente, Kanban ou Lista
+   SOP · OPERACIONAL por cliente, Kanban ou Lista
    ============================================================ */
 function sop(arg){
   const cs=Data.activeClients();
@@ -338,12 +374,12 @@ function sop(arg){
   if(!SOP_CID && cs.length) SOP_CID=cs[0].id;
   const c=Data.client(SOP_CID);
   const chips = cs.map(x=>`<button class="wtag ${x.id===SOP_CID?'green':''}" style="cursor:pointer" onclick="setSop('${x.id}')">${esc(x.name)}</button>`).join('');
-  if(!c) return `<div class="ws-head"><div class="ws-title">SOP · Operacional</div></div><div class="card pad muted">Nenhum cliente ativo.</div>`;
+  if(!c) return `<div class="ws-head"><div class="ws-title">Operacional</div></div><div class="card pad muted">Nenhum cliente ativo.</div>`;
   const board=(c.board||[]);
   const view = SOP_VIEW==='lista'?sopLista(c,board):sopKanban(c,board);
   return `
   <div class="ws-head">
-    <div><div class="ws-title">SOP · Operacional</div><div class="ws-sub">Fluxo de produção por cliente — arraste pelo status.</div></div>
+    <div><div class="ws-title">Operacional</div></div>
     <div class="row" style="gap:10px">
       <button class="btn btn-sm card" onclick="addBoard('${c.id}')">${U.icon('plus')} Tarefa</button>
       <div class="vtoggle">
@@ -406,7 +442,7 @@ async function setBoardStatus(cid,id,val){ await Store.updateBoardTask(cid,id,{s
 async function delBoard(cid,id){ if(!confirm('Excluir tarefa?')) return; await Store.deleteBoardTask(cid,id); render(); }
 
 /* ============================================================
-   AGENDA — gravações e reuniões
+   AGENDA gravações e reuniões
    ============================================================ */
 function agenda(){
   const evs=(Data.events()||[]).slice().sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
@@ -429,7 +465,7 @@ function agenda(){
     </div>`;
   return `
   <div class="ws-head">
-    <div><div class="ws-title">Agenda</div><div class="ws-sub">Gravações, reuniões e compromissos.</div></div>
+    <div><div class="ws-title">Agenda</div></div>
     <a class="btn btn-primary" href="agenda.html">${U.icon('plus')} Novo evento</a>
   </div>
   ${block('Gravações','clapper',grav)}
@@ -488,6 +524,7 @@ function onSearch(v){ SEARCH=(v||'').toLowerCase().trim();
 /* ---------- util ---------- */
 function todayISO(){ return new Date().toISOString().slice(0,10); }
 
+try{ if(localStorage.getItem('ofruto_ws_side')==='off') document.body.classList.add('ws-collapsed'); }catch(e){}
 U.boot(render, {manager:true});
 </script>
 </body>
