@@ -243,7 +243,9 @@ function renderPlan(){
 
       ${post.roteiro?`<div class="card pad">
         <div class="eyebrow" style="margin-bottom:10px">Roteiro / cenas</div>
-        <div class="caption-box">${post.roteiro}</div>
+        ${/^https?:\/\/\S+$/.test((post.roteiro||'').trim())
+          ? `<a class="btn btn-primary" href="${post.roteiro.trim()}" target="_blank" rel="noopener">${U.icon('file')} Abrir roteiro</a>`
+          : `<div class="caption-box">${post.roteiro}</div>`}
       </div>`:''}
 
       <div class="card pad">
