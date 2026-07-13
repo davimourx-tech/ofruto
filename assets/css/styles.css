@@ -787,3 +787,18 @@ body.ws-body{overflow:hidden}
   body.ws-collapsed .ws-main{padding-top:74px}
 }
 @media (max-width:820px){ .ws-collapse,.ws-open{display:none} }
+
+/* cartões de etapa do funil (editor de pilar) */
+.pil-etapas{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pil-etapa{text-align:left;padding:14px 16px;border-radius:14px;border:1px solid var(--line);
+  background:var(--surface-2);display:flex;flex-direction:column;gap:4px;transition:.16s var(--ease)}
+.pil-etapa strong{font-size:15px}
+.pil-etapa span{font-size:12.5px;color:var(--text-3);line-height:1.4}
+.pil-etapa:hover{border-color:var(--line-2)}
+.pil-etapa.on{border-color:var(--accent);background:var(--surface-3);box-shadow:inset 0 0 0 1px var(--accent)}
+.pil-etapa.on span{color:var(--text-2)}
+@media(max-width:600px){.pil-etapas{grid-template-columns:1fr}}
+
+/* barra de equilíbrio de tipos (matriz) */
+.bal{height:7px;border-radius:99px;background:var(--surface-3);overflow:hidden}
+.bal>i{display:block;height:100%;border-radius:99px;background:var(--accent-grad)}

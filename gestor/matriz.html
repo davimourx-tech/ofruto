@@ -25,21 +25,42 @@ const CID=U.qs("c");
 let client, MATRIZ=[], PILARES=[];
 const FORMATS=Object.keys(TYPE);
 const now=new Date();
+const TIPOS_MATRIZ=[
+  { k:'organico',  t:'Orgânico',  d:'Conteúdo por conteúdo. Atrai pessoas novas (audiência que ainda não segue).' },
+  { k:'marketing', t:'Marketing', d:'Faz marketing do serviço. Gera valor, mostra o método e aquece quem já acompanha.' },
+  { k:'venda',     t:'Venda',     d:'Vende o serviço direto. Oferta, prova e chamada pra fechar.' }
+];
+const TIPO_LBL=Object.fromEntries(TIPOS_MATRIZ.map(x=>[x.k,x.t]));
 
 function slotRow(s){
   const wdOpts=WEEKDAYS.map((w,i)=>`<option value="${i}" ${Number(s.weekday)===i?'selected':''}>${w}</option>`).join('');
   const fmtOpts=FORMATS.map(f=>`<option value="${f}" ${s.format===f?'selected':''}>${TYPE[f].label}</option>`).join('');
+  const tipoOpts=TIPOS_MATRIZ.map(x=>`<option value="${x.k}" ${(s.tipo||'organico')===x.k?'selected':''}>${x.t}</option>`).join('');
   return `<div class="task-row" style="gap:10px;flex-wrap:wrap">
     <select class="input" style="width:auto" onchange="edit('${s.id}','weekday',this.value)">${wdOpts}</select>
+    <select class="input" style="width:auto" onchange="edit('${s.id}','tipo',this.value)" title="Tipo de conteúdo">${tipoOpts}</select>
     <select class="input" style="width:auto" onchange="edit('${s.id}','format',this.value)">${fmtOpts}</select>
-    <input class="input grow" list="pilar-list" style="min-width:160px" value="${(s.pilar||'').replace(/"/g,'&quot;')}" placeholder="Pilar / objetivo" oninput="edit('${s.id}','pilar',this.value)">
+    <input class="input grow" list="pilar-list" style="min-width:150px" value="${(s.pilar||'').replace(/"/g,'&quot;')}" placeholder="Pilar" oninput="edit('${s.id}','pilar',this.value)">
     <button class="btn-icon card" title="Remover" onclick="delSlot('${s.id}')">${U.icon('trash')}</button>
   </div>`;
 }
+function balanceHtml(){
+  if(!MATRIZ.length) return '';
+  const tot=MATRIZ.length;
+  const cells=TIPOS_MATRIZ.map(x=>{
+    const n=MATRIZ.filter(s=>(s.tipo||'organico')===x.k).length;
+    const pct=Math.round(n/tot*100);
+    return `<div class="col grow" style="gap:6px">
+      <div class="row between"><span class="meta-sm" style="color:var(--text)">${x.t}</span><span class="meta-sm">${n}/sem · ${pct}%</span></div>
+      <div class="bal"><i style="width:${pct}%"></i></div></div>`;
+  }).join('');
+  return `<div class="row wrap" style="gap:18px;margin-bottom:16px">${cells}</div>`;
+}
 function pilarCard(p){
+  const etapaLbl={atrair:'Atrair',conectar:'Conectar',converter:'Converter',reter:'Reter'}[p.etapa]||p.funcao||'';
   return `<a class="card pad hover row between" href="matriz-pilar.html?c=${CID}&id=${p.id}">
     <div class="col" style="min-width:0"><strong>${p.nome||'Sem nome'}</strong>
-      <span class="meta-sm">${[p.funcao,p.plataforma].filter(Boolean).join(' · ')||'Definir'}</span></div>
+      <span class="meta-sm">${[etapaLbl,p.plataforma].filter(Boolean).join(' · ')||'Definir'}</span></div>
     ${U.icon('arrow')}</a>`;
 }
 
@@ -77,10 +98,20 @@ function render(){
 
     <section class="section" style="max-width:760px">
       <div class="card pad">
-        <div class="row between" style="margin-bottom:12px">
+        <strong>Tipos de conteúdo</strong>
+        <div class="grid c3" style="gap:12px;margin-top:14px">
+          ${TIPOS_MATRIZ.map(x=>`<div class="pil-etapa" style="cursor:default"><strong>${x.t}</strong><span>${x.d}</span></div>`).join('')}
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="max-width:760px">
+      <div class="card pad">
+        <div class="row between" style="margin-bottom:14px">
           <strong>Grade semanal</strong>
           <button class="btn btn-sm card" onclick="addSlot()">${U.icon('plus')} Adicionar slot</button>
         </div>
+        ${balanceHtml()}
         <div class="col" id="slots">${MATRIZ.length?MATRIZ.map(slotRow).join(''):'<p class="meta-sm">Nenhum slot ainda. Clique em “Adicionar slot”.</p>'}</div>
       </div>
     </section>
@@ -107,8 +138,8 @@ async function addPilar(){
   await Store.setPilares(CID, PILARES);
   location.href=`matriz-pilar.html?c=${CID}&id=${id}`;
 }
-function addSlot(){ MATRIZ.push({ id:'s'+Date.now()+Math.random().toString(36).slice(2,5), weekday:1, format:'reel-9-16', pilar:'' }); save(); render(); }
-function edit(id,field,val){ const s=MATRIZ.find(x=>x.id===id); if(!s) return; s[field]= field==='weekday'?Number(val):val; save(); refreshCount(); }
+function addSlot(){ MATRIZ.push({ id:'s'+Date.now()+Math.random().toString(36).slice(2,5), weekday:1, tipo:'organico', format:'reel-9-16', pilar:'' }); save(); render(); }
+function edit(id,field,val){ const s=MATRIZ.find(x=>x.id===id); if(!s) return; s[field]= field==='weekday'?Number(val):val; save(); refreshCount(); if(field==='tipo') render(); }
 function delSlot(id){ const i=MATRIZ.findIndex(x=>x.id===id); if(i>=0) MATRIZ.splice(i,1); save(); render(); }
 
 async function gerar(){
