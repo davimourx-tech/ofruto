@@ -76,15 +76,24 @@ function balanceHtml(){
   return `<div class="row wrap" style="gap:18px;margin-bottom:18px">${cells}</div>`;
 }
 
-function monthCount(){
-  const m=Number(document.getElementById('genMonth').value), y=Number(document.getElementById('genYear').value);
+let GEN_COVER='';
+function isoOf(dt){ return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
+function rangeCount(){
+  const fEl=document.getElementById('genFrom'), tEl=document.getElementById('genTo');
+  if(!fEl||!tEl) return 0;
   const withDays=PILARES.filter(p=>p.dias&&p.dias.length);
-  if(!withDays.length) return 0;
-  const days=new Date(y,m+1,0).getDate(); let n=0;
-  for(let d=1;d<=days;d++){ const wd=new Date(y,m,d).getDay(); n+=withDays.filter(p=>(p.dias||[]).includes(wd)).length; }
+  if(!fEl.value||!tEl.value||!withDays.length) return 0;
+  let a=new Date(fEl.value+'T12:00:00'), b=new Date(tEl.value+'T12:00:00'); if(b<a) return 0;
+  let n=0; const cur=new Date(a);
+  while(cur<=b){ const wd=cur.getDay(); n+=withDays.filter(p=>(p.dias||[]).includes(wd)).length; cur.setDate(cur.getDate()+1); }
   return n;
 }
-function refreshCount(){ const el=document.getElementById('genCount'); if(el) el.textContent=monthCount()+' pautas serão criadas no mês'; }
+function refreshCount(){ const el=document.getElementById('genCount'); if(el) el.textContent=rangeCount()+' pautas serão criadas'; }
+async function genCoverUp(input){ const f=input.files[0]; if(!f) return;
+  U.toast('Enviando capa...'); const url=await Store.uploadCover(f); input.value='';
+  if(url){ GEN_COVER=url; const el=document.getElementById('genCoverPrev');
+    el.className='proj-thumb'; el.style.cssText='background-image:url("'+url+'");background-size:cover;background-position:center'; el.innerHTML=''; U.toast('Capa pronta ✅'); } }
+function genCoverClear(){ GEN_COVER=''; const el=document.getElementById('genCoverPrev'); if(el){ el.className='proj-thumb noimg'; el.style.cssText=''; el.innerHTML=U.icon('image'); } }
 
 function render(){
   document.getElementById("crumbs").innerHTML=`<a href="cliente.html?c=${CID}">← ${client.name}</a>`;
@@ -116,14 +125,31 @@ function render(){
 
     <section class="section" style="max-width:820px;padding-top:0">
       <div class="card pad" style="background:var(--surface-2)">
-        <div class="eyebrow" style="margin-bottom:12px">${U.icon('calendar')} Gerar o mês</div>
-        <div class="row wrap" style="gap:10px;align-items:center">
-          <select class="input" id="genMonth" style="width:auto" onchange="refreshCount()">${monthOpts}</select>
-          <input class="input" id="genYear" type="number" style="width:110px" value="${now.getFullYear()}" oninput="refreshCount()">
-          <button class="btn btn-primary" onclick="gerar()">${U.icon('sparkle')} Gerar mês</button>
+        <div class="eyebrow" style="margin-bottom:14px">${U.icon('calendar')} Gerar o mês</div>
+        <div class="grid c2" style="gap:12px">
+          <div class="field"><label>Nome do projeto</label>
+            <input class="input" id="genName" value="Conteúdos de ${MONTHS_FULL[now.getMonth()].charAt(0).toUpperCase()+MONTHS_FULL[now.getMonth()].slice(1)} ${now.getFullYear()}"></div>
+          <div class="field"><label>Tipo</label>
+            <select class="input" id="genKind">
+              <option value="planejamento">Planejamento (escrever roteiros)</option>
+              <option value="conteudo">Conteúdo</option>
+            </select></div>
+          <div class="field"><label>De</label><input class="input" id="genFrom" type="date" value="${isoOf(now)}" onchange="refreshCount()"></div>
+          <div class="field"><label>Até</label><input class="input" id="genTo" type="date" value="${isoOf(new Date(now.getFullYear(),now.getMonth()+1,0))}" onchange="refreshCount()"></div>
         </div>
-        <p class="meta-sm" id="genCount" style="margin-top:10px"></p>
-        <p class="hint" style="margin-top:4px">Cria um projeto de Planejamento com as pautas já datadas pelos dias de cada formato. Cada pauta já vem com o briefing puxado do formato.</p>
+        <div class="field"><label>Capa do projeto (opcional)</label>
+          <div class="row" style="gap:12px;align-items:center">
+            <div class="proj-thumb ${GEN_COVER?'':'noimg'}" id="genCoverPrev" ${GEN_COVER?`style="background-image:url('${GEN_COVER}');background-size:cover;background-position:center"`:''}>${GEN_COVER?'':U.icon('image')}</div>
+            <label class="btn btn-sm card" for="genCoverFile" style="cursor:pointer">${U.icon('upload')} Enviar capa</label>
+            <input type="file" id="genCoverFile" accept="image/*" class="hidden" onchange="genCoverUp(this)">
+            <button type="button" class="btn btn-sm btn-ghost" onclick="genCoverClear()">Sem capa</button>
+          </div>
+        </div>
+        <div class="row wrap" style="gap:12px;align-items:center;margin-top:6px">
+          <button class="btn btn-primary" onclick="gerar()">${U.icon('sparkle')} Gerar</button>
+          <span class="meta-sm" id="genCount"></span>
+        </div>
+        <p class="hint" style="margin-top:8px">Cria o projeto com as pautas datadas pelos dias de cada formato, no período escolhido. Cada pauta já nasce com o briefing puxado do formato — é só escrever o roteiro.</p>
       </div>
     </section>`;
   refreshCount();
@@ -138,12 +164,16 @@ function addPilar(){
 async function gerar(){
   const withDays=PILARES.filter(p=>p.dias&&p.dias.length);
   if(!withDays.length){ U.toast('Crie um formato com dias primeiro'); return; }
-  const m=Number(document.getElementById('genMonth').value), y=Number(document.getElementById('genYear').value);
-  const n=monthCount();
-  if(!confirm(`Gerar ${n} pautas em ${MONTHS_FULL[m]} de ${y}? Isso cria um novo projeto de Planejamento.`)) return;
+  const from=document.getElementById('genFrom').value, to=document.getElementById('genTo').value;
+  const name=document.getElementById('genName').value.trim();
+  const kind=document.getElementById('genKind').value;
+  if(!from||!to){ U.toast('Escolha o período'); return; }
+  const n=rangeCount();
+  if(!n){ U.toast('Nenhuma pauta nesse período'); return; }
+  if(!confirm(`Gerar ${n} pautas de ${U.fmtDate(from)} até ${U.fmtDate(to)}?`)) return;
   try{
-    const res=await Store.generateMonthFromFormats(CID, y, m);
-    U.toast(`Mês gerado: ${res.count} pautas ✨`);
+    const res=await Store.generateMonthFromFormats(CID, { from, to, name, kind, cover:GEN_COVER });
+    U.toast(`Gerado: ${res.count} pautas ✨`);
     location.href=`projeto.html?c=${CID}&p=${res.project.id}`;
   }catch(e){ alert('Não deu pra gerar: '+e.message); }
 }

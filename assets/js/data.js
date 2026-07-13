@@ -674,23 +674,28 @@ const Store = {
   },
   /* gera o mês a partir dos FORMATOS (pilares) e seus dias da semana.
      cada pauta já nasce com o briefing puxado da intenção estratégica do formato. */
-  async generateMonthFromFormats(cid, year, month){
+  async generateMonthFromFormats(cid, opts){
+    opts=opts||{};
     const c=Data.client(cid);
     const formatos=(c.pilares||[]).filter(p=>Array.isArray(p.dias)&&p.dias.length);
     if(!formatos.length) throw new Error('Crie ao menos um formato com dias da semana definidos.');
+    const from=opts.from ? new Date(opts.from+'T12:00:00') : new Date();
+    const to=opts.to ? new Date(opts.to+'T12:00:00') : new Date();
+    if(to<from) throw new Error('A data final está antes da inicial.');
     const CATMAP={ 'Reels':'reel-9-16','Carrossel':'carrossel','Foto':'foto','Stories':'stories','Vídeo longo':'reel-16-9','Corte / Live':'reel-9-16' };
-    const nome=`Conteúdos de ${MONTHS_FULL[month].charAt(0).toUpperCase()+MONTHS_FULL[month].slice(1)} ${year}`;
-    const proj=await this.addProject(cid,{ name:nome, status:'andamento', kind:'planejamento',
+    const nome=opts.name || `Conteúdos de ${MONTHS_FULL[from.getMonth()].charAt(0).toUpperCase()+MONTHS_FULL[from.getMonth()].slice(1)} ${from.getFullYear()}`;
+    const kind=opts.kind || 'planejamento';
+    const proj=await this.addProject(cid,{ name:nome, status:'andamento', kind, cover:opts.cover||'',
       intro:'Planejamento gerado pelos formatos. Cada pauta já vem com formato, função e roteiro-guia — falta escrever o roteiro final.' });
-    const days=new Date(year, month+1, 0).getDate();
     let count=0;
-    for(let d=1; d<=days; d++){
-      const wd=new Date(year, month, d).getDay();
+    const cur=new Date(from);
+    while(cur<=to){
+      const wd=cur.getDay(), y=cur.getFullYear(), mo=cur.getMonth()+1, d=cur.getDate();
       for(const p of formatos){
         if(!(p.dias||[]).map(Number).includes(wd)) continue;
         const cat=(p.formatos&&p.formatos[0])||'Reels';
         const type=CATMAP[cat]||'reel-9-16';
-        const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dateStr=`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
         const t=TYPE[type]||TYPE['reel-9-16'];
         const brief=[ p.conceito?('Conceito: '+p.conceito):'', p.objetivo?('Objetivo: '+p.objetivo):'',
           p.gancho?('Gancho: '+p.gancho):'', p.estrutura?('Estrutura: '+p.estrutura):'',
@@ -699,6 +704,7 @@ const Store = {
           status:'pendente', caption:'', note:'', embed:'', cover:'', briefing:brief, roteiro:'', refs:p.refs||'' }, null);
         count++;
       }
+      cur.setDate(cur.getDate()+1);
     }
     return { project:proj, count };
   },
