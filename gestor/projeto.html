@@ -37,8 +37,9 @@
       <div class="field grow"><label>Data de publicação</label>
         <input class="input" id="f-date" type="date"></div>
     </div>
-    <div class="field"><label>Pilar / objetivo (opcional)</label>
-      <input class="input" id="f-pilar" placeholder="Ex.: Educação, Autoridade, Bastidor..."></div>
+    <div class="field"><label>Formato da matriz</label>
+      <select class="input" id="f-pilar" onchange="pickFormato()"></select>
+      <span class="hint">Escolha um formato criado na matriz — o briefing já vem com a intenção estratégica dele.</span></div>
     <div class="row" style="gap:12px">
       <div class="field grow"><label>Status do conteúdo</label><select class="input" id="f-prod"></select></div>
       <div class="field grow"><label>Responsável</label><select class="input" id="f-responsavel"></select></div>
@@ -285,13 +286,33 @@ function newPost(){
 function fill(p){
   f("title",p.title); f("type",p.type||"reel-9-16"); f("date",p.date); f("embed",p.embed||"");
   f("caption",p.caption||""); f("note",p.note||""); f("status",p.status);
-  f("briefing",p.briefing||""); f("roteiro",p.roteiro||""); f("refs",p.refs||""); f("pilar",p.pilar||"");
+  f("briefing",p.briefing||""); f("roteiro",p.roteiro||""); f("refs",p.refs||""); fillPilarOptions(p.pilar||"");
   f("prod",p.prod||""); f("responsavel",p.responsavel||"");
   f("elink",p.embed||""); f("edesc",p.caption||"");
   PC_COVER=p.cover||""; f("pcurl",PC_COVER); pcRefresh(); ecRefresh();
 }
 function f(id,val){document.getElementById("f-"+id).value=val;}
 function g(id){return document.getElementById("f-"+id).value;}
+
+/* seletor de formato (pilar) pelo nome — puxa a intenção estratégica */
+function fillPilarOptions(cur){
+  const list=(client.pilares||[]);
+  const opts=['<option value="">— sem formato —</option>']
+    .concat(list.map(p=>`<option value="${(p.nome||'').replace(/"/g,'&quot;')}">${p.nome||'Sem nome'}</option>`));
+  if(cur && !list.some(p=>p.nome===cur)) opts.push(`<option value="${cur.replace(/"/g,'&quot;')}">${cur}</option>`);
+  const sel=document.getElementById("f-pilar"); sel.innerHTML=opts.join(''); sel.value=cur||'';
+}
+const CATMAP_POST={Reels:'reel-9-16',Carrossel:'carrossel',Foto:'foto',Stories:'stories','Vídeo longo':'reel-16-9','Corte / Live':'reel-9-16'};
+function pickFormato(){
+  const name=g("pilar"); const p=(client.pilares||[]).find(x=>x.nome===name); if(!p) return;
+  const cat=(p.formatos||[])[0]; if(cat && CATMAP_POST[cat]) f("type",CATMAP_POST[cat]);
+  const brief=[ p.conceito?('Conceito: '+p.conceito):'', p.objetivo?('Objetivo: '+p.objetivo):'',
+    p.gancho?('Gancho: '+p.gancho):'', p.estrutura?('Estrutura: '+p.estrutura):'',
+    p.cta?('CTA: '+p.cta):'', (p.metrica||p.meta)?('Meta: '+[p.metrica,p.meta].filter(Boolean).join(' — ')):'' ].filter(Boolean).join('\n\n');
+  if(!brief) return;
+  const cur=g("briefing").trim();
+  if(!cur || confirm('Preencher o briefing com a intenção estratégica de “'+name+'”?')) f("briefing",brief);
+}
 
 async function savePost(){
   let data;
