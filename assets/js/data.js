@@ -687,6 +687,7 @@ const Store = {
     const kind=opts.kind || 'planejamento';
     const proj=await this.addProject(cid,{ name:nome, status:'andamento', kind, cover:opts.cover||'',
       intro:'Planejamento gerado pelos formatos. Cada pauta já vem com formato, função e roteiro-guia — falta escrever o roteiro final.' });
+    if(!opts.visivel){ await this.setProjectArchived(cid, proj.id, true); }   // nasce oculto pro cliente por padrão
     let count=0;
     const cur=new Date(from);
     while(cur<=to){

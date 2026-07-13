@@ -145,7 +145,10 @@ function render(){
             <button type="button" class="btn btn-sm btn-ghost" onclick="genCoverClear()">Sem capa</button>
           </div>
         </div>
-        <div class="row wrap" style="gap:12px;align-items:center;margin-top:6px">
+        <label class="row" style="gap:9px;cursor:pointer;margin-top:6px">
+          <input type="checkbox" id="genVisivel">
+          <span class="meta-sm">Deixar visível pro cliente agora (senão nasce oculto até você liberar)</span></label>
+        <div class="row wrap" style="gap:12px;align-items:center;margin-top:10px">
           <button class="btn btn-primary" onclick="gerar()">${U.icon('sparkle')} Gerar</button>
           <span class="meta-sm" id="genCount"></span>
         </div>
@@ -167,12 +170,13 @@ async function gerar(){
   const from=document.getElementById('genFrom').value, to=document.getElementById('genTo').value;
   const name=document.getElementById('genName').value.trim();
   const kind=document.getElementById('genKind').value;
+  const visivel=document.getElementById('genVisivel').checked;
   if(!from||!to){ U.toast('Escolha o período'); return; }
   const n=rangeCount();
   if(!n){ U.toast('Nenhuma pauta nesse período'); return; }
   if(!confirm(`Gerar ${n} pautas de ${U.fmtDate(from)} até ${U.fmtDate(to)}?`)) return;
   try{
-    const res=await Store.generateMonthFromFormats(CID, { from, to, name, kind, cover:GEN_COVER });
+    const res=await Store.generateMonthFromFormats(CID, { from, to, name, kind, cover:GEN_COVER, visivel });
     U.toast(`Gerado: ${res.count} pautas ✨`);
     location.href=`projeto.html?c=${CID}&p=${res.project.id}`;
   }catch(e){ alert('Não deu pra gerar: '+e.message); }
