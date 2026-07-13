@@ -10,7 +10,7 @@
 
 <header class="topbar">
   <div class="wrap">
-    <a class="brand" href="hub.html"><span class="dot"></span> oFruto <small>gestor</small></a>
+    <a class="brand" href="workspace.html"><span class="dot"></span> oFruto <small>gestor</small></a>
     <nav class="topnav" id="crumbs"></nav>
   </div>
 </header>
@@ -22,56 +22,60 @@
 <script src="../assets/js/data.js"></script>
 <script>
 const CID=U.qs("c");
-let client, MATRIZ=[], PILARES=[];
-const FORMATS=Object.keys(TYPE);
+let client, PILARES=[];
 const now=new Date();
+const DIAS_SHORT=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 const TIPOS_MATRIZ=[
   { k:'organico',  t:'Orgânico',  d:'Conteúdo por conteúdo. Atrai pessoas novas (audiência que ainda não segue).' },
   { k:'marketing', t:'Marketing', d:'Faz marketing do serviço. Gera valor, mostra o método e aquece quem já acompanha.' },
   { k:'venda',     t:'Venda',     d:'Vende o serviço direto. Oferta, prova e chamada pra fechar.' }
 ];
-const TIPO_LBL=Object.fromEntries(TIPOS_MATRIZ.map(x=>[x.k,x.t]));
+const TIPO_LBL={organico:'Orgânico',marketing:'Marketing',venda:'Venda',atrair:'Orgânico',conectar:'Marketing',converter:'Venda',reter:'Venda'};
+function tipoOf(p){ return p.tipo || {atrair:'organico',conectar:'marketing',converter:'venda',reter:'venda'}[p.etapa] || 'organico'; }
 
-function slotRow(s){
-  const wdOpts=WEEKDAYS.map((w,i)=>`<option value="${i}" ${Number(s.weekday)===i?'selected':''}>${w}</option>`).join('');
-  const fmtOpts=FORMATS.map(f=>`<option value="${f}" ${s.format===f?'selected':''}>${TYPE[f].label}</option>`).join('');
-  const tipoOpts=TIPOS_MATRIZ.map(x=>`<option value="${x.k}" ${(s.tipo||'organico')===x.k?'selected':''}>${x.t}</option>`).join('');
-  return `<div class="task-row" style="gap:10px;flex-wrap:wrap">
-    <select class="input" style="width:auto" onchange="edit('${s.id}','weekday',this.value)">${wdOpts}</select>
-    <select class="input" style="width:auto" onchange="edit('${s.id}','tipo',this.value)" title="Tipo de conteúdo">${tipoOpts}</select>
-    <select class="input" style="width:auto" onchange="edit('${s.id}','format',this.value)">${fmtOpts}</select>
-    <input class="input grow" list="pilar-list" style="min-width:150px" value="${(s.pilar||'').replace(/"/g,'&quot;')}" placeholder="Pilar" oninput="edit('${s.id}','pilar',this.value)">
-    <button class="btn-icon card" title="Remover" onclick="delSlot('${s.id}')">${U.icon('trash')}</button>
-  </div>`;
+function pilarCard(p){
+  const meta=[TIPO_LBL[tipoOf(p)], (p.formatos||[])[0], (p.dias&&p.dias.length)?p.dias.slice().sort((a,b)=>a-b).map(i=>DIAS_SHORT[i]).join(', '):'sem dias'].filter(Boolean).join(' · ');
+  return `<a class="card pad hover row between" href="matriz-pilar.html?c=${CID}&id=${p.id}">
+    <div class="col" style="min-width:0"><strong>${p.nome||'Sem nome'}</strong>
+      <span class="meta-sm">${meta}</span></div>
+    ${U.icon('arrow')}</a>`;
 }
+
+function weekPreview(){
+  const withDays=PILARES.filter(p=>p.dias&&p.dias.length);
+  if(!withDays.length) return '<p class="meta-sm">Nenhum formato com dias ainda. Crie um formato e escolha os dias que ele sai.</p>';
+  return `<div class="wk">${DIAS_SHORT.map((d,i)=>{
+    const items=withDays.filter(p=>(p.dias||[]).includes(i));
+    return `<div class="wk-day">
+      <div class="wk-h">${d}</div>
+      ${items.length?items.map(p=>`<span class="wk-item t-${tipoOf(p)}" title="${(p.formatos||[])[0]||''}">${p.nome||'Formato'}</span>`).join(''):'<span class="wk-empty">—</span>'}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function balanceHtml(){
-  if(!MATRIZ.length) return '';
-  const tot=MATRIZ.length;
+  const withDays=PILARES.filter(p=>p.dias&&p.dias.length);
+  let tot=0; const by={organico:0,marketing:0,venda:0};
+  withDays.forEach(p=>{ const n=(p.dias||[]).length; by[tipoOf(p)]+=n; tot+=n; });
+  if(!tot) return '';
   const cells=TIPOS_MATRIZ.map(x=>{
-    const n=MATRIZ.filter(s=>(s.tipo||'organico')===x.k).length;
-    const pct=Math.round(n/tot*100);
-    return `<div class="col grow" style="gap:6px">
+    const n=by[x.k], pct=Math.round(n/tot*100);
+    return `<div class="col grow" style="gap:6px;min-width:120px">
       <div class="row between"><span class="meta-sm" style="color:var(--text)">${x.t}</span><span class="meta-sm">${n}/sem · ${pct}%</span></div>
       <div class="bal"><i style="width:${pct}%"></i></div></div>`;
   }).join('');
-  return `<div class="row wrap" style="gap:18px;margin-bottom:16px">${cells}</div>`;
-}
-function pilarCard(p){
-  const etapaLbl={atrair:'Atrair',conectar:'Conectar',converter:'Converter',reter:'Reter'}[p.etapa]||p.funcao||'';
-  return `<a class="card pad hover row between" href="matriz-pilar.html?c=${CID}&id=${p.id}">
-    <div class="col" style="min-width:0"><strong>${p.nome||'Sem nome'}</strong>
-      <span class="meta-sm">${[etapaLbl,p.plataforma].filter(Boolean).join(' · ')||'Definir'}</span></div>
-    ${U.icon('arrow')}</a>`;
+  return `<div class="row wrap" style="gap:18px;margin-bottom:18px">${cells}</div>`;
 }
 
 function monthCount(){
   const m=Number(document.getElementById('genMonth').value), y=Number(document.getElementById('genYear').value);
-  if(!MATRIZ.length) return 0;
+  const withDays=PILARES.filter(p=>p.dias&&p.dias.length);
+  if(!withDays.length) return 0;
   const days=new Date(y,m+1,0).getDate(); let n=0;
-  for(let d=1;d<=days;d++){ const wd=new Date(y,m,d).getDay(); n+=MATRIZ.filter(s=>Number(s.weekday)===wd).length; }
+  for(let d=1;d<=days;d++){ const wd=new Date(y,m,d).getDay(); n+=withDays.filter(p=>(p.dias||[]).includes(wd)).length; }
   return n;
 }
-function refreshCount(){ const el=document.getElementById('genCount'); if(el) el.textContent=monthCount()+' pautas serão criadas'; }
+function refreshCount(){ const el=document.getElementById('genCount'); if(el) el.textContent=monthCount()+' pautas serão criadas no mês'; }
 
 function render(){
   document.getElementById("crumbs").innerHTML=`<a href="cliente.html?c=${CID}">← ${client.name}</a>`;
@@ -81,22 +85,9 @@ function render(){
       <a class="meta-sm" href="cliente.html?c=${CID}">← ${client.name}</a>
       <div class="eyebrow" style="margin:16px 0 0">Matriz de conteúdo</div>
       <h1 class="display" style="font-size:clamp(28px,5vw,44px);margin-top:8px">${client.name}</h1>
-      <p class="lead" style="margin-top:12px">Defina seus pilares de conteúdo (cada um vira uma página detalhável) e monte a grade da semana. Depois é só gerar o mês.</p>
     </section>
 
-    <datalist id="pilar-list">${PILARES.map(p=>`<option value="${(p.nome||'').replace(/"/g,'&quot;')}">`).join('')}</datalist>
-
-    <section class="section" style="max-width:760px">
-      <div class="card pad">
-        <div class="row between" style="margin-bottom:12px">
-          <div><strong>Pilares de conteúdo</strong><div class="meta-sm">Clique num pilar para detalhar o formato.</div></div>
-          <button class="btn btn-sm card" onclick="addPilar()">${U.icon('plus')} Pilar</button>
-        </div>
-        <div class="grid c2" style="gap:12px">${PILARES.length?PILARES.map(pilarCard).join(''):'<p class="meta-sm">Nenhum pilar ainda. Clique em “Pilar” para criar.</p>'}</div>
-      </div>
-    </section>
-
-    <section class="section" style="max-width:760px">
+    <section class="section" style="max-width:820px;padding-top:0">
       <div class="card pad">
         <strong>Tipos de conteúdo</strong>
         <div class="grid c3" style="gap:12px;margin-top:14px">
@@ -105,18 +96,25 @@ function render(){
       </div>
     </section>
 
-    <section class="section" style="max-width:760px">
+    <section class="section" style="max-width:820px;padding-top:0">
       <div class="card pad">
         <div class="row between" style="margin-bottom:14px">
-          <strong>Grade semanal</strong>
-          <button class="btn btn-sm card" onclick="addSlot()">${U.icon('plus')} Adicionar slot</button>
+          <div><strong>Formatos</strong><div class="meta-sm">Cada formato tem função, dias e roteiro-guia. Clique pra editar.</div></div>
+          <button class="btn btn-sm card" onclick="addPilar()">${U.icon('plus')} Formato</button>
         </div>
-        ${balanceHtml()}
-        <div class="col" id="slots">${MATRIZ.length?MATRIZ.map(slotRow).join(''):'<p class="meta-sm">Nenhum slot ainda. Clique em “Adicionar slot”.</p>'}</div>
+        <div class="grid c2" style="gap:12px">${PILARES.length?PILARES.map(pilarCard).join(''):'<p class="meta-sm">Nenhum formato ainda. Clique em “Formato” para criar.</p>'}</div>
       </div>
     </section>
 
-    <section class="section" style="max-width:760px">
+    <section class="section" style="max-width:820px;padding-top:0">
+      <div class="card pad">
+        <strong>A semana</strong>
+        <div style="margin:14px 0 4px">${balanceHtml()}</div>
+        ${weekPreview()}
+      </div>
+    </section>
+
+    <section class="section" style="max-width:820px;padding-top:0">
       <div class="card pad" style="background:var(--surface-2)">
         <div class="eyebrow" style="margin-bottom:12px">${U.icon('calendar')} Gerar o mês</div>
         <div class="row wrap" style="gap:10px;align-items:center">
@@ -125,30 +123,27 @@ function render(){
           <button class="btn btn-primary" onclick="gerar()">${U.icon('sparkle')} Gerar mês</button>
         </div>
         <p class="meta-sm" id="genCount" style="margin-top:10px"></p>
-        <p class="hint" style="margin-top:4px">Cria um projeto de Planejamento com as pautas já datadas (formato + pilar). Você só escreve os roteiros.</p>
+        <p class="hint" style="margin-top:4px">Cria um projeto de Planejamento com as pautas já datadas pelos dias de cada formato. Cada pauta já vem com o briefing puxado do formato.</p>
       </div>
     </section>`;
   refreshCount();
 }
 
-async function save(){ await Store.setMatriz(CID, MATRIZ); }
 async function addPilar(){
   const id='p'+Date.now()+Math.random().toString(36).slice(2,5);
-  PILARES.push({ id, nome:'Novo pilar', funcao:'', formatos:[], plataforma:'', descricao:'' });
+  PILARES.push({ id, nome:'', tipo:'organico', formatos:[], plataforma:'', dias:[], conceito:'', objetivo:'', metrica:'', meta:'', gancho:'', estrutura:'', cta:'', refs:'' });
   await Store.setPilares(CID, PILARES);
   location.href=`matriz-pilar.html?c=${CID}&id=${id}`;
 }
-function addSlot(){ MATRIZ.push({ id:'s'+Date.now()+Math.random().toString(36).slice(2,5), weekday:1, tipo:'organico', format:'reel-9-16', pilar:'' }); save(); render(); }
-function edit(id,field,val){ const s=MATRIZ.find(x=>x.id===id); if(!s) return; s[field]= field==='weekday'?Number(val):val; save(); refreshCount(); if(field==='tipo') render(); }
-function delSlot(id){ const i=MATRIZ.findIndex(x=>x.id===id); if(i>=0) MATRIZ.splice(i,1); save(); render(); }
 
 async function gerar(){
-  if(!MATRIZ.length){ U.toast('Monte a grade primeiro'); return; }
+  const withDays=PILARES.filter(p=>p.dias&&p.dias.length);
+  if(!withDays.length){ U.toast('Crie um formato com dias primeiro'); return; }
   const m=Number(document.getElementById('genMonth').value), y=Number(document.getElementById('genYear').value);
   const n=monthCount();
   if(!confirm(`Gerar ${n} pautas em ${MONTHS_FULL[m]} de ${y}? Isso cria um novo projeto de Planejamento.`)) return;
   try{
-    const res=await Store.generateMonth(CID, y, m);
+    const res=await Store.generateMonthFromFormats(CID, y, m);
     U.toast(`Mês gerado: ${res.count} pautas ✨`);
     location.href=`projeto.html?c=${CID}&p=${res.project.id}`;
   }catch(e){ alert('Não deu pra gerar: '+e.message); }
@@ -156,8 +151,7 @@ async function gerar(){
 
 function start(){
   client=Data.client(CID);
-  if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="hub.html">Voltar</a></div>'; return; }
-  MATRIZ=(client.matriz||[]).map(s=>Object.assign({},s));
+  if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="workspace.html">Voltar</a></div>'; return; }
   PILARES=(client.pilares||[]).map(p=>Object.assign({},p));
   render();
 }

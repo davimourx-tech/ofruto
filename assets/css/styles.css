@@ -802,3 +802,14 @@ body.ws-body{overflow:hidden}
 /* barra de equilíbrio de tipos (matriz) */
 .bal{height:7px;border-radius:99px;background:var(--surface-3);overflow:hidden}
 .bal>i{display:block;height:100%;border-radius:99px;background:var(--accent-grad)}
+
+/* preview da semana pelos formatos (matriz) */
+.wk{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+.wk-day{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:10px 8px;min-height:90px;display:flex;flex-direction:column;gap:6px}
+.wk-h{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3);text-align:center}
+.wk-item{font-size:11.5px;font-weight:600;line-height:1.2;padding:6px 8px;border-radius:8px;background:var(--surface-3);color:var(--text);border-left:3px solid var(--text-3)}
+.wk-item.t-organico{border-left-color:#ededea}
+.wk-item.t-marketing{border-left-color:var(--amber)}
+.wk-item.t-venda{border-left-color:var(--red)}
+.wk-empty{text-align:center;color:var(--text-3);font-size:13px}
+@media(max-width:700px){ .wk{grid-template-columns:1fr;gap:6px} .wk-day{min-height:0;flex-direction:row;align-items:center;flex-wrap:wrap} .wk-h{width:44px;text-align:left} }

@@ -672,6 +672,36 @@ const Store = {
     }
     return { project:proj, count };
   },
+  /* gera o mês a partir dos FORMATOS (pilares) e seus dias da semana.
+     cada pauta já nasce com o briefing puxado da intenção estratégica do formato. */
+  async generateMonthFromFormats(cid, year, month){
+    const c=Data.client(cid);
+    const formatos=(c.pilares||[]).filter(p=>Array.isArray(p.dias)&&p.dias.length);
+    if(!formatos.length) throw new Error('Crie ao menos um formato com dias da semana definidos.');
+    const CATMAP={ 'Reels':'reel-9-16','Carrossel':'carrossel','Foto':'foto','Stories':'stories','Vídeo longo':'reel-16-9','Corte / Live':'reel-9-16' };
+    const nome=`Conteúdos de ${MONTHS_FULL[month].charAt(0).toUpperCase()+MONTHS_FULL[month].slice(1)} ${year}`;
+    const proj=await this.addProject(cid,{ name:nome, status:'andamento', kind:'planejamento',
+      intro:'Planejamento gerado pelos formatos. Cada pauta já vem com formato, função e roteiro-guia — falta escrever o roteiro final.' });
+    const days=new Date(year, month+1, 0).getDate();
+    let count=0;
+    for(let d=1; d<=days; d++){
+      const wd=new Date(year, month, d).getDay();
+      for(const p of formatos){
+        if(!(p.dias||[]).map(Number).includes(wd)) continue;
+        const cat=(p.formatos&&p.formatos[0])||'Reels';
+        const type=CATMAP[cat]||'reel-9-16';
+        const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const t=TYPE[type]||TYPE['reel-9-16'];
+        const brief=[ p.conceito?('Conceito: '+p.conceito):'', p.objetivo?('Objetivo: '+p.objetivo):'',
+          p.gancho?('Gancho: '+p.gancho):'', p.estrutura?('Estrutura: '+p.estrutura):'',
+          p.cta?('CTA: '+p.cta):'', (p.metrica||p.meta)?('Meta: '+[p.metrica,p.meta].filter(Boolean).join(' — ')):'' ].filter(Boolean).join('\n\n');
+        await this.savePost(cid, proj.id, { title:(p.nome||t.label), type, date:dateStr, pilar:p.nome||'',
+          status:'pendente', caption:'', note:'', embed:'', cover:'', briefing:brief, roteiro:'', refs:p.refs||'' }, null);
+        count++;
+      }
+    }
+    return { project:proj, count };
+  },
   async setProjectName(cid,pid,name){ Data.project(cid,pid).name=name;
     if(this.sb) await this.sb.from('projects').update({name}).eq('id',pid); },
   async setProjectIntro(cid,pid,intro){ Data.project(cid,pid).intro=intro;

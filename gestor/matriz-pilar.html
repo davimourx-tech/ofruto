@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<title>oFruto · Pilar</title>
+<title>oFruto · Formato</title>
 <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
 <body>
@@ -22,15 +22,16 @@
 <script src="../assets/js/data.js"></script>
 <script>
 const CID=U.qs("c"), PID=U.qs("id");
-let client, PILARES=[], P=null, TAB='formato';
+let client, PILARES=[], P=null;
 
 /* metodologia oFruto: 3 tipos de conteúdo em vídeo, com funções distintas */
 const TIPOS=[
-  { k:'organico',  t:'Orgânico',  d:'Conteúdo por conteúdo. Função: atrair pessoas novas (viralização, audiência que ainda não segue).' },
+  { k:'organico',  t:'Orgânico',  d:'Conteúdo por conteúdo. Função: atrair pessoas novas (audiência que ainda não segue).' },
   { k:'marketing', t:'Marketing', d:'Gera valor fazendo marketing do serviço. Função: mostrar o método, a autoridade e aquecer quem já acompanha.' },
   { k:'venda',     t:'Venda',     d:'Vende o serviço direto. Função: oferta, prova, chamada pra fechar.' }
 ];
 const CATEGORIAS=["Reels","Carrossel","Foto","Stories","Vídeo longo","Corte / Live"];
+const DIAS=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
 const METRICAS={
   organico:["Alcance de não-seguidores","Views","Compartilhamentos"],
   marketing:["Salvamentos","Novos seguidores","Comentários"],
@@ -38,94 +39,86 @@ const METRICAS={
 };
 function v(id){ const e=document.getElementById(id); return e?e.value:''; }
 
-/* captura os campos da aba atual antes de trocar/salvar */
 function collect(){
-  if(document.getElementById('p-nome')) P.nome=v('p-nome').trim();
-  if(document.getElementById('p-plat')) P.plataforma=v('p-plat').trim();
-  if(document.getElementById('p-freq')) P.frequencia=v('p-freq').trim();
-  if(document.getElementById('p-conceito')) P.conceito=v('p-conceito').trim();
-  if(document.getElementById('p-objetivo')) P.objetivo=v('p-objetivo').trim();
-  if(document.getElementById('p-metrica')) P.metrica=v('p-metrica').trim();
-  if(document.getElementById('p-cadencia')) P.cadencia=v('p-cadencia').trim();
-  if(document.getElementById('p-meta')) P.meta=v('p-meta').trim();
-  if(document.getElementById('p-gancho')) P.gancho=v('p-gancho').trim();
-  if(document.getElementById('p-estrutura')) P.estrutura=v('p-estrutura').trim();
-  if(document.getElementById('p-cta')) P.cta=v('p-cta').trim();
-  if(document.getElementById('p-refs')) P.refs=v('p-refs').trim();
+  const g=id=>document.getElementById(id);
+  if(g('p-nome')) P.nome=g('p-nome').value.trim();
+  if(g('p-plat')) P.plataforma=g('p-plat').value.trim();
+  if(g('p-conceito')) P.conceito=g('p-conceito').value.trim();
+  if(g('p-objetivo')) P.objetivo=g('p-objetivo').value.trim();
+  if(g('p-metrica')) P.metrica=g('p-metrica').value.trim();
+  if(g('p-meta')) P.meta=g('p-meta').value.trim();
+  if(g('p-gancho')) P.gancho=g('p-gancho').value.trim();
+  if(g('p-estrutura')) P.estrutura=g('p-estrutura').value.trim();
+  if(g('p-cta')) P.cta=g('p-cta').value.trim();
+  if(g('p-refs')) P.refs=g('p-refs').value.trim();
 }
-function setTab(t){ collect(); TAB=t; render(); }
-function toggleCat(f){ P.formatos=P.formatos||[]; const i=P.formatos.indexOf(f);
+function toggleCat(f){ collect(); P.formatos=P.formatos||[]; const i=P.formatos.indexOf(f);
   if(i>=0) P.formatos.splice(i,1); else P.formatos.push(f); render(); }
 function setTipo(k){ collect(); P.tipo=k; render(); }
-
-function tabFormato(){
-  const cats=CATEGORIAS.map(f=>`<button type="button" class="chip ${(P.formatos||[]).includes(f)?'on':''}" onclick="toggleCat('${f}')">${f}</button>`).join('');
-  return `<div class="card pad">
-    <div class="grid c2">
-      <div class="field"><label>Plataforma</label><input class="input" id="p-plat" value="${(P.plataforma||'').replace(/"/g,'&quot;')}" placeholder="Instagram"></div>
-      <div class="field"><label>Frequência</label><input class="input" id="p-freq" value="${(P.frequencia||'').replace(/"/g,'&quot;')}" placeholder="2x por semana"></div>
-    </div>
-    <div class="field"><label>Categoria / formato</label><div class="chips">${cats}</div></div>
-    <div class="field"><label>O que é esse formato</label>
-      <textarea class="textarea" id="p-conceito" style="min-height:150px" placeholder="O conceito do formato: que tipo de vídeo é, qual tema, qual tom, o que ele entrega pra audiência.">${P.conceito||''}</textarea></div>
-  </div>`;
-}
-function tabFuncao(){
-  const cards=TIPOS.map(f=>`<button type="button" class="pil-etapa ${P.tipo===f.k?'on':''}" onclick="setTipo('${f.k}')">
-    <strong>${f.t}</strong><span>${f.d}</span></button>`).join('');
-  const sug=(METRICAS[P.tipo]||[]).map(m=>`<button type="button" class="chip" onclick="document.getElementById('p-metrica').value='${m}'">${m}</button>`).join('');
-  return `<div class="card pad">
-    <label style="display:block;margin-bottom:10px;color:var(--text-2);font-size:13px">Tipo de conteúdo (a função desse pilar)</label>
-    <div class="pil-etapas">${cards}</div>
-    <div class="field" style="margin-top:18px"><label>Objetivo do pilar</label>
-      <textarea class="textarea" id="p-objetivo" style="min-height:90px" placeholder="O que esse pilar precisa provocar (ex.: fazer não-seguidor salvar e seguir; aquecer pra oferta; iniciar conversa no direct...).">${P.objetivo||''}</textarea></div>
-    <div class="grid c2">
-      <div class="field"><label>Métrica de sucesso</label><input class="input" id="p-metrica" value="${(P.metrica||'').replace(/"/g,'&quot;')}" placeholder="Alcance de não-seguidores"></div>
-      <div class="field"><label>Meta</label><input class="input" id="p-meta" value="${(P.meta||'').replace(/"/g,'&quot;')}" placeholder="50 mil de alcance"></div>
-    </div>
-    ${sug?`<div class="chips" style="margin-top:2px">${sug}</div>`:''}
-    <div class="field" style="margin-top:14px"><label>Cadência (quanto desse tipo por semana)</label>
-      <input class="input" id="p-cadencia" value="${(P.cadencia||'').replace(/"/g,'&quot;')}" placeholder="Ex.: 3x por semana — definido pela fase do cliente"></div>
-  </div>`;
-}
-function tabRoteiro(){
-  return `<div class="card pad">
-    <div class="field"><label>Gancho (primeiros 3s)</label>
-      <textarea class="textarea" id="p-gancho" style="min-height:80px" placeholder="Como abrir o vídeo pra segurar quem não segue.">${P.gancho||''}</textarea></div>
-    <div class="field"><label>Estrutura / desenvolvimento</label>
-      <textarea class="textarea" id="p-estrutura" style="min-height:120px" placeholder="A sequência do vídeo: passo a passo, blocos, o que mostrar.">${P.estrutura||''}</textarea></div>
-    <div class="grid c2">
-      <div class="field"><label>CTA (chamada final)</label>
-        <textarea class="textarea" id="p-cta" style="min-height:80px" placeholder="O que pedir no fim: salvar, comentar, chamar no direct...">${P.cta||''}</textarea></div>
-      <div class="field"><label>Referências</label>
-        <textarea class="textarea" id="p-refs" style="min-height:80px" placeholder="Links ou perfis de referência pra esse formato.">${P.refs||''}</textarea></div>
-    </div>
-  </div>`;
-}
+function toggleDia(i){ collect(); P.dias=P.dias||[]; const j=P.dias.indexOf(i);
+  if(j>=0) P.dias.splice(j,1); else P.dias.push(i); P.dias.sort((a,b)=>a-b); render(); }
 
 function render(){
   document.getElementById("crumbs").innerHTML=`<a href="matriz.html?c=${CID}">← Matriz</a>`;
-  const etapaLabel=(TIPOS.find(f=>f.k===P.tipo)||{}).t||'';
-  const body = TAB==='funil'?tabFuncao() : TAB==='roteiro'?tabRoteiro() : tabFormato();
+  const tipoLabel=(TIPOS.find(f=>f.k===P.tipo)||{}).t||'';
+  const cats=CATEGORIAS.map(f=>`<button type="button" class="chip ${(P.formatos||[]).includes(f)?'on':''}" onclick="toggleCat('${f}')">${f}</button>`).join('');
+  const tipoCards=TIPOS.map(f=>`<button type="button" class="pil-etapa ${P.tipo===f.k?'on':''}" onclick="setTipo('${f.k}')">
+    <strong>${f.t}</strong><span>${f.d}</span></button>`).join('');
+  const diasChips=DIAS.map((d,i)=>`<button type="button" class="chip ${(P.dias||[]).includes(i)?'on':''}" onclick="toggleDia(${i})">${d}</button>`).join('');
+  const sug=(METRICAS[P.tipo]||[]).map(m=>`<button type="button" class="chip" onclick="collect();document.getElementById('p-metrica').value='${m}';P.metrica='${m}'">${m}</button>`).join('');
+
   document.getElementById("root").innerHTML=`
     <section class="section">
       <a class="meta-sm" href="matriz.html?c=${CID}">← Matriz de ${client.name}</a>
-      <div class="eyebrow" style="margin:16px 0 6px">Pilar de conteúdo${etapaLabel?' · '+etapaLabel:''}</div>
-      <input class="input" id="p-nome" value="${(P.nome||'').replace(/"/g,'&quot;')}" placeholder="Nome do pilar"
+      <div class="eyebrow" style="margin:16px 0 6px">Formato de conteúdo${tipoLabel?' · '+tipoLabel:''}</div>
+      <input class="input" id="p-nome" value="${(P.nome||'').replace(/"/g,'&quot;')}" placeholder="Nome do formato (ex.: Bastidor, Autoridade, Oferta...)"
         style="font-family:var(--serif);font-weight:800;font-size:clamp(24px,4vw,36px);border:none;background:transparent;padding:6px 0"
         oninput="P.nome=this.value">
     </section>
 
-    <section class="section" style="max-width:820px;padding-top:0">
-      <div class="seg" style="margin-bottom:18px">
-        <button class="${TAB==='formato'?'on':''}" onclick="setTab('formato')">Formato</button>
-        <button class="${TAB==='funil'?'on':''}" onclick="setTab('funil')">Função & cadência</button>
-        <button class="${TAB==='roteiro'?'on':''}" onclick="setTab('roteiro')">Roteiro-guia</button>
+    <section class="section" style="max-width:820px;padding-top:0;display:flex;flex-direction:column;gap:16px">
+
+      <div class="card pad">
+        <strong>Formato</strong>
+        <div class="grid c2" style="margin-top:14px">
+          <div class="field"><label>Plataforma</label><input class="input" id="p-plat" value="${(P.plataforma||'').replace(/"/g,'&quot;')}" placeholder="Instagram"></div>
+          <div class="field"><label>Categoria</label><div class="chips">${cats}</div></div>
+        </div>
+        <div class="field"><label>O que é esse formato</label>
+          <textarea class="textarea" id="p-conceito" style="min-height:120px" placeholder="O conceito: que tipo de vídeo é, qual tema, qual tom, o que ele entrega pra audiência.">${P.conceito||''}</textarea></div>
       </div>
-      ${body}
-      <div class="row wrap" style="gap:10px;margin-top:16px">
-        <button class="btn btn-primary" onclick="salvar()">${U.icon('check')} Salvar pilar</button>
-        <button class="btn btn-ghost" style="color:var(--red)" onclick="excluir()">Excluir pilar</button>
+
+      <div class="card pad">
+        <strong>Função & cadência</strong>
+        <label style="display:block;margin:14px 0 10px;color:var(--text-2);font-size:13px">Tipo de conteúdo (a função desse formato)</label>
+        <div class="pil-etapas">${tipoCards}</div>
+        <div class="field" style="margin-top:16px"><label>Sai em quais dias da semana</label><div class="chips">${diasChips}</div></div>
+        <div class="field"><label>Objetivo</label>
+          <textarea class="textarea" id="p-objetivo" style="min-height:80px" placeholder="O que esse formato precisa provocar (ex.: fazer não-seguidor salvar; aquecer pra oferta; iniciar conversa no direct...).">${P.objetivo||''}</textarea></div>
+        <div class="grid c2">
+          <div class="field"><label>Métrica de sucesso</label><input class="input" id="p-metrica" value="${(P.metrica||'').replace(/"/g,'&quot;')}" placeholder="Alcance de não-seguidores"></div>
+          <div class="field"><label>Meta</label><input class="input" id="p-meta" value="${(P.meta||'').replace(/"/g,'&quot;')}" placeholder="50 mil de alcance"></div>
+        </div>
+        ${sug?`<div class="chips" style="margin-top:2px">${sug}</div>`:''}
+      </div>
+
+      <div class="card pad">
+        <strong>Roteiro-guia</strong>
+        <div class="field" style="margin-top:14px"><label>Gancho (primeiros 3s)</label>
+          <textarea class="textarea" id="p-gancho" style="min-height:70px" placeholder="Como abrir o vídeo pra segurar quem não segue.">${P.gancho||''}</textarea></div>
+        <div class="field"><label>Estrutura / desenvolvimento</label>
+          <textarea class="textarea" id="p-estrutura" style="min-height:100px" placeholder="A sequência do vídeo: passo a passo, blocos, o que mostrar.">${P.estrutura||''}</textarea></div>
+        <div class="grid c2">
+          <div class="field"><label>CTA (chamada final)</label>
+            <textarea class="textarea" id="p-cta" style="min-height:70px" placeholder="O que pedir no fim: salvar, comentar, chamar no direct...">${P.cta||''}</textarea></div>
+          <div class="field"><label>Referências</label>
+            <textarea class="textarea" id="p-refs" style="min-height:70px" placeholder="Links ou perfis de referência.">${P.refs||''}</textarea></div>
+        </div>
+      </div>
+
+      <div class="row wrap" style="gap:10px">
+        <button class="btn btn-primary" onclick="salvar()">${U.icon('check')} Salvar formato</button>
+        <button class="btn btn-ghost" style="color:var(--red)" onclick="excluir()">Excluir formato</button>
       </div>
     </section>`;
 }
@@ -133,17 +126,18 @@ function render(){
 async function salvar(){
   collect(); if(!P.nome) P.nome='Sem nome';
   const i=PILARES.findIndex(x=>x.id===PID); if(i>=0) PILARES[i]=P; else PILARES.push(P);
-  await Store.setPilares(CID, PILARES); U.toast('Pilar salvo ✅');
+  await Store.setPilares(CID, PILARES); U.toast('Formato salvo ✅');
 }
-async function excluir(){ if(!confirm('Excluir este pilar?')) return;
+async function excluir(){ if(!confirm('Excluir este formato?')) return;
   PILARES=PILARES.filter(x=>x.id!==PID); await Store.setPilares(CID, PILARES); location.href=`matriz.html?c=${CID}`; }
 
 function start(){
   client=Data.client(CID);
   if(!client){ document.getElementById("root").innerHTML='<div class="empty" style="padding-top:60px">Cliente não encontrado. <a href="workspace.html">Voltar</a></div>'; return; }
   PILARES=(client.pilares||[]).map(p=>Object.assign({},p));
-  P=PILARES.find(x=>x.id===PID) || { id:PID, nome:'', tipo:'organico', formatos:[], plataforma:'', frequencia:'', conceito:'', objetivo:'', metrica:'', meta:'', cadencia:'', gancho:'', estrutura:'', cta:'', refs:'' };
+  P=PILARES.find(x=>x.id===PID) || { id:PID, nome:'', tipo:'organico', formatos:[], plataforma:'', dias:[], conceito:'', objetivo:'', metrica:'', meta:'', gancho:'', estrutura:'', cta:'', refs:'' };
   if(!P.tipo){ P.tipo={atrair:'organico',conectar:'marketing',converter:'venda',reter:'venda'}[P.etapa]||'organico'; }
+  if(!Array.isArray(P.dias)) P.dias=[];
   render();
 }
 U.boot(start, {manager:true});
