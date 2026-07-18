@@ -132,7 +132,7 @@ function projectCard(p){
         <div class="proj-thumb ${cv.cls}" style="${cv.style}"><div class="art-noise"></div></div>
         <div class="col">
           <div class="row wrap" style="gap:8px;margin-bottom:6px">
-            <span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>
+            ${p.archived?`<span class="badge is-reprovado"><span class="pip"></span>Oculto pro cliente</span>`:`<span class="badge ${st.cls} ${st.live?'live':''}"><span class="pip"></span>${st.label}</span>`}
             ${plan?`<span class="badge">${U.icon('idea')} Planejamento</span>`:''}
             ${entrega?`<span class="badge">${U.icon('layers')} Entregável</span>`:''}
           </div>
@@ -142,9 +142,11 @@ function projectCard(p){
         </div>
       </a>
       <div class="row wrap" style="gap:8px">
+        ${p.archived
+          ? `<button class="btn btn-sm btn-primary nowrap" onclick="arquivarProj('${p.id}',false)">${U.icon('eye')} Mostrar pro cliente</button>`
+          : `<button class="btn btn-sm card nowrap" onclick="arquivarProj('${p.id}',true)">${U.icon('archive')} Ocultar do cliente</button>`}
         <button class="btn btn-sm card nowrap" onclick="openCover('${p.id}')">${U.icon("image")} Capa</button>
         <a class="btn btn-sm card nowrap" href="projeto.html?c=${CID}&p=${p.id}">Gerenciar ${U.icon("arrow")}</a>
-        <button class="btn-icon card" title="${p.archived?'Reativar (voltar pro cliente)':'Arquivar (some pro cliente)'}" onclick="arquivarProj('${p.id}',${p.archived?'false':'true'})">${U.icon(p.archived?'arrow':'archive')}</button>
         <button class="btn-icon card" title="Excluir projeto" onclick="excluirProj('${p.id}','${p.name.replace(/'/g,"\\'")}')">${U.icon('trash')}</button>
       </div>
     </div>
@@ -307,8 +309,8 @@ async function addProject(){
   closeModals(); U.toast("Projeto criado"); render();
 }
 
-async function arquivarProj(pid,val){ await Store.setProjectArchived(CID,pid,val==='true'||val===true);
-  U.toast(val==='true'||val===true?'Arquivado — não aparece pro cliente':'Reativado'); render(); }
+async function arquivarProj(pid,val){ const hide=(val==='true'||val===true); await Store.setProjectArchived(CID,pid,hide);
+  U.toast(hide?'Oculto — não aparece pro cliente':'Visível pro cliente ✅'); render(); }
 async function excluirProj(pid,name){ if(!confirm('Excluir o projeto "'+name+'" e todos os conteúdos dele? Não dá pra desfazer.')) return;
   await Store.deleteProject(CID,pid); U.toast('Projeto excluído'); render(); }
 

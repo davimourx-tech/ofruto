@@ -178,7 +178,7 @@ function clientesList(){
     const need=pr.adj+pr.rej;
     const nProj=(c.projects||[]).filter(p=>!p.archived).length;
     const tag = need>0?`<span class="wtag">${need} aguardando</span>`:`<span class="wtag green">Em dia</span>`;
-    return `<div class="wrow" onclick="go('#clientes/${c.id}')">
+    return `<div class="wrow" onclick="location.href='cliente.html?c=${c.id}'">
       ${U.avatarHtml(c,'lg')}
       <div class="wr-main"><div class="wr-title">${esc(c.name)}</div>
         <div class="wr-meta">${esc(c.handle)} · ${nProj} projeto${nProj===1?'':'s'} · ${pr.total} conteúdos</div></div>

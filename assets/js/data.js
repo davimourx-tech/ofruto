@@ -909,10 +909,11 @@ U.appNav = function(){
   } else if(path.includes('/gestor/')){
     if(U.isGestor()){
       tabs = [
-        { href:'hub.html', icon:'grid', label:'Hub', match:['hub.html'] },
+        { href:'workspace.html', icon:'grid', label:'Início', match:['workspace.html','hub.html'] },
+        { href:'workspace.html#clientes', icon:'user', label:'Clientes', match:['cliente.html','projeto.html','matriz.html','matriz-pilar.html','operacional-cliente.html','dados.html','financeiro.html','estrategia.html','metricas.html','extracao.html','diagnostico.html'] },
         { href:'minhas-tarefas.html', icon:'check', label:'Tarefas', match:['minhas-tarefas.html','tarefa.html','pessoa.html'] },
         { href:'agenda.html', icon:'calendar', label:'Agenda', match:['agenda.html'] },
-        { href:'equipe.html', icon:'user', label:'Equipe', match:['equipe.html'] },
+        { href:'equipe.html', icon:'megaphone', label:'Equipe', match:['equipe.html'] },
         { logout:true, icon:'back', label:'Sair' }
       ];
     } else {
